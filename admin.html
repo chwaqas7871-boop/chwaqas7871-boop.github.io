@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#070b13">
+<title>PC Studio Admin</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#070b13;color:#eef7ff;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;padding:env(safe-area-inset-top,0) 0 env(safe-area-inset-bottom,0)}
+[hidden]{display:none!important}
+h1{font-size:16px;letter-spacing:1.2px;margin:0}h1 b{color:#55e5ff}h2{font-size:12px;color:#9db1ca;margin:18px 0 8px;letter-spacing:1px}
+button,input,select,textarea{background:#162940;color:#eaf7ff;border:1px solid #35516d;border-radius:9px;padding:9px 11px;font-size:13px;font-family:inherit}
+button{font-weight:700;cursor:pointer}button.p{background:linear-gradient(135deg,#087fa5,#1455a0);border-color:#299ac4}button.d{background:#351b29;border-color:#79374b;color:#ffbdc8}
+#login{min-height:100vh;display:grid;place-items:center;padding:20px}.box{width:min(360px,100%);background:#0d1626;border:1px solid #2b4059;border-radius:16px;padding:22px;text-align:center}
+.box input{width:100%;margin:14px 0 10px;text-align:center;letter-spacing:3px}.box button{width:100%}#msg{color:#ff8b9b;font-size:12px;min-height:16px;margin-top:8px}
+header{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px solid #25374e;background:#080f1b}
+main{max-width:900px;margin:0 auto;padding:14px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.row label{font-size:11px;color:#9db1ca}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}.card{background:#0d1626;border:1px solid #29435e;border-radius:12px;padding:12px}.card small{display:block;color:#8fa8c2;font-size:10px;margin-bottom:5px}.card b{font-size:19px;color:#5ce7ff}
+.bar{position:relative;background:#0b1523;border:1px solid #293e56;border-radius:9px;margin:5px 0;height:34px;overflow:hidden;display:flex;align-items:center;padding:0 10px;font-size:12px}
+.bar i{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,#0a5d7a,#1a6fd0);opacity:.55}.bar span,.bar em{position:relative;font-style:normal}.bar em{margin-left:auto;color:#cfeaff}
+#days{display:flex;gap:4px;align-items:flex-end;height:110px;background:#0b1523;border:1px solid #293e56;border-radius:12px;padding:10px}.col{flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:4px}.col i{width:100%;background:linear-gradient(180deg,#55e5ff,#1455a0);border-radius:4px 4px 0 0;min-height:2px}.col small{font-size:9px;color:#8fa8c2}
+table{width:100%;border-collapse:collapse;font-size:12px}td,th{padding:7px 6px;border-bottom:1px solid #1d2d42;text-align:left}th{color:#8fa8c2;font-weight:600;font-size:10px}
+textarea{width:100%;min-height:70px;font-family:monospace;font-size:11px}.muted{color:#8299b2;font-size:12px}.note{font-size:10px;color:#8299b2;line-height:1.5;margin-top:14px}
+</style>
+</head>
+<body>
+<div id="login"><div class="box"><h1>PC <b>STUDIO</b> ADMIN</h1><input id="code" type="password" placeholder="Enter admin code" autocomplete="off"><button class="p" id="go">ENTER</button><div id="msg"></div></div></div>
+<div id="dash" hidden>
+<header><h1>PC <b>STUDIO</b> ADMIN</h1><button id="out">Log out</button></header>
+<main>
+<h2>EARNINGS SETTINGS</h2>
+<div class="row"><label>Currency</label><select id="cur"><option>Rs</option><option>₹</option><option>$</option><option>€</option><option>£</option></select><label>Earning per play</label><input id="rate" type="number" min="0" step="0.01" style="width:100px"><label>Banner eCPM (per 1000 views)</label><input id="ecb" type="number" min="0" style="width:90px"><label>Video ad eCPM (per 1000 views)</label><input id="ecv" type="number" min="0" style="width:90px"></div>
+<h2>OVERVIEW</h2><div class="cards" id="cards"></div>
+<h2>ADS</h2>
+<div class="cards" id="adCards"></div>
+<h2>WALLET AND EASYPAISA WITHDRAWAL</h2>
+<div class="cards" id="wallet"></div>
+<div class="row" style="margin-top:8px"><input id="epNum" inputmode="numeric" placeholder="Easypaisa number 03XXXXXXXXX" style="flex:1;min-width:190px"><input id="epAmt" type="number" min="1" placeholder="Amount (Rs)" style="width:130px"><button class="p" id="wd">Request withdrawal</button></div>
+<div id="wdList" style="margin-top:8px"></div>
+<h2>PLAYS PER GAME</h2><div id="games"></div>
+<h2>LAST 14 DAYS</h2><div id="days"></div>
+<h2>RECENT PLAYS</h2><table><thead><tr><th>Time</th><th>Game</th><th>Earned</th></tr></thead><tbody id="recent"></tbody></table>
+<h2>DATA TOOLS</h2>
+<div class="row"><button class="p" id="demo">Load demo data</button><button id="csv">Export CSV</button><button id="json">Export JSON</button><button class="d" id="clear">Clear all</button></div>
+<h2>IMPORT PLAYS (paste JSON)</h2><textarea id="imp" placeholder='[{"t":1731500000000,"g":"GTA V"}]'></textarea><div class="row" style="margin-top:6px"><button id="doImp">Import</button></div>
+<h2>SYNC FROM SERVER (optional)</h2><div class="row"><input id="url" placeholder="https://your-server/plays" style="flex:1;min-width:200px"><button id="sync">Sync</button></div>
+<div class="note">How it works: the app saves every game launch on the device and site where it is opened. This panel reads the same saved data, so open the admin file from the same website as the app. To collect plays from all of your players, put a small server behind the app (set TRACK_URL in the app) and use Sync. The admin code in this file is only a basic lock because it is visible in the page source. A real launch needs server-side login. Earnings shown are estimates: plays multiplied by your rate. Withdrawals: this panel does not send real money. It records each request. You send the amount from your Easypaisa app or business account, then tap Mark paid and enter the transaction ID. Real income only exists if someone pays you, for example through ads, player payments or sponsors, so the rate is a number you decide. Ads: ad earnings here are estimates from the eCPM values you enter (rupees per 1,000 views). Your real ad income is shown in your ad network dashboard (for example Google AdSense), which usually pays to a bank account.</div>
+</main></div>
+<script>
+const $=id=>document.getElementById(id),K='pcs_plays',C='pcs_admin_cfg',D=864e5;
+const esc=s=>String(s).replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';');
+let cfg={cur:'Rs',rate:1,ecpmB:50,ecpmV:300};try{Object.assign(cfg,JSON.parse(localStorage.getItem(C)||'{}'))}catch(e){}
+const load=()=>{try{const a=JSON.parse(localStorage.getItem(K)||'[]');return Array.isArray(a)?a:[]}catch(e){return[]}};
+const save=a=>{try{localStorage.setItem(K,JSON.stringify(a))}catch(e){}};
+function enter(){$('login').hidden=true;$('dash').hidden=false;render()}
+$('go').onclick=()=>{if($('code').value.trim().toUpperCase()==='ADMIN7'){try{sessionStorage.setItem('adm','1')}catch(e){}enter()}else{$('msg').textContent='Wrong code'}};
+$('code').onkeydown=e=>{if(e.key==='Enter')$('go').click()};
+$('out').onclick=()=>{try{sessionStorage.removeItem('adm')}catch(e){}$('dash').hidden=true;$('login').hidden=false;$('code').value=''};
+try{if(sessionStorage.getItem('adm'))enter()}catch(e){}
+function render(){const a=load(),t0=new Date().setHours(0,0,0,0),money=n=>cfg.cur+(cfg.cur==='Rs'?' ':'')+n.toLocaleString(undefined,{maximumFractionDigits:2});
+ $('cur').value=cfg.cur;$('rate').value=cfg.rate;$('ecb').value=cfg.ecpmB;$('ecv').value=cfg.ecpmV;
+ const today=a.filter(x=>x.t>=t0).length,wk=a.filter(x=>x.t>=t0-6*D).length,by={};a.forEach(x=>{by[x.g]=(by[x.g]||0)+1});
+ const rows=Object.entries(by).sort((p,q)=>q[1]-p[1]),max=rows.length?rows[0][1]:1;
+ $('cards').innerHTML=[['Total plays',a.length],['Today',today],['Last 7 days',wk],['Total earnings',money(a.length*cfg.rate)],['Today earnings',money(today*cfg.rate)],['Top game',rows[0]?esc(rows[0][0]):'-']].map(c=>`<div class="card"><small>${c[0]}</small><b>${c[1]}</b></div>`).join('');
+ $('games').innerHTML=rows.map(r=>`<div class="bar"><i style="width:${r[1]/max*100}%"></i><span>${esc(r[0])}</span><em>${r[1]} plays · ${money(r[1]*cfg.rate)}</em></div>`).join('')||'<p class="muted">No plays yet. Run a game in the app, or load demo data.</p>';
+ const days=[];for(let i=13;i>=0;i--){const s=t0-i*D;days.push([new Date(s).getDate(),a.filter(x=>x.t>=s&&x.t<s+D).length])}
+ const dm=Math.max(1,...days.map(x=>x[1]));$('days').innerHTML=days.map(x=>`<div class="col"><i style="height:${x[1]/dm*100}%"></i><small>${x[0]}</small></div>`).join('');
+ adsRender(money);wallet(earnedAll(),money);$('recent').innerHTML=a.slice(-12).reverse().map(x=>`<tr><td>${esc(new Date(x.t).toLocaleString())}</td><td>${esc(x.g)}</td><td>${money(cfg.rate)}</td></tr>`).join('')}
+function ads(){try{const a=JSON.parse(localStorage.getItem('pcs_ads')||'[]');return Array.isArray(a)?a:[]}catch(e){return[]}}
+function adRev(){const a=ads();return a.filter(x=>x.k==='banner').length/1000*(cfg.ecpmB||0)+a.filter(x=>x.k==='video'&&!x.skip).length/1000*(cfg.ecpmV||0)}
+function earnedAll(){return load().length*cfg.rate+adRev()}
+function adsRender(money){const a=ads(),b=a.filter(x=>x.k==='banner').length,v=a.filter(x=>x.k==='video'&&!x.skip).length,sk=a.filter(x=>x.k==='video'&&x.skip).length;$('adCards').innerHTML=[['Banner views',b],['Video ads watched',v],['Video ads skipped',sk],['Est. ad earnings',money(adRev())]].map(c=>`<div class="card"><small>${c[0]}</small><b>${c[1]}</b></div>`).join('')}
+function wds(){try{const a=JSON.parse(localStorage.getItem('pcs_wd')||'[]');return Array.isArray(a)?a:[]}catch(e){return[]}}
+function saveWd(a){try{localStorage.setItem('pcs_wd',JSON.stringify(a))}catch(e){}}
+function wallet(earned,money){const w=wds(),paid=w.filter(x=>x.s==='Paid').reduce((t,x)=>t+x.amt,0),pend=w.filter(x=>x.s==='Pending').reduce((t,x)=>t+x.amt,0),avail=Math.max(0,earned-paid-pend);
+ $('wallet').innerHTML=[['Total earned',money(earned)],['Paid out',money(paid)],['Pending',money(pend)],['Available to withdraw',money(avail)]].map(c=>`<div class="card"><small>${c[0]}</small><b>${c[1]}</b></div>`).join('');
+ $('wdList').innerHTML=w.slice().reverse().map(x=>`<div class="bar" style="height:auto;min-height:40px;padding:8px 10px;flex-wrap:wrap;gap:6px"><span>${esc(new Date(x.t).toLocaleDateString())} · ${esc(x.num)} · ${money(x.amt)}</span><em>${esc(x.s)}${x.ref?' · TID '+esc(x.ref):''}</em>${x.s==='Pending'?`<span style="width:100%;display:flex;gap:6px"><button data-a="copy" data-i="${esc(x.id)}">Copy details</button><button class="p" data-a="paid" data-i="${esc(x.id)}">Mark paid</button><button class="d" data-a="cancel" data-i="${esc(x.id)}">Cancel</button></span>`:''}</div>`).join('')||'<p class="muted">No withdrawals yet.</p>'}
+function setCfg(){cfg.cur=$('cur').value;cfg.rate=Math.max(0,+$('rate').value||0);cfg.ecpmB=Math.max(0,+$('ecb').value||0);cfg.ecpmV=Math.max(0,+$('ecv').value||0);try{localStorage.setItem(C,JSON.stringify(cfg))}catch(e){}render()}
+$('cur').onchange=setCfg;$('rate').oninput=setCfg;$('ecb').oninput=setCfg;$('ecv').oninput=setCfg;
+$('demo').onclick=()=>{const g=['City Heist','Block Builder','Sky Royale','Tactical Strike','Neon City 2088','Horizon Racer 5','Ashen Crown','Bomb Squad 2','Craft Playground'],a=load(),now=Date.now();for(let i=0;i<400;i++)a.push({t:now-Math.random()*14*D,g:g[Math.floor(Math.pow(Math.random(),1.6)*g.length)]});a.sort((p,q)=>p.t-q.t);save(a);const ad=ads();for(let i=0;i<1500;i++)ad.push({t:now-Math.random()*14*D,k:'banner'});for(let i=0;i<350;i++)ad.push({t:now-Math.random()*14*D,k:'video',skip:Math.random()<.3});try{localStorage.setItem('pcs_ads',JSON.stringify(ad))}catch(e){}render()};
+$('clear').onclick=()=>{if(confirm('Delete all saved plays?')){save([]);render()}};
+function dl(name,text,type){const b=new Blob([text],{type}),u=URL.createObjectURL(b),l=document.createElement('a');l.href=u;l.download=name;document.body.appendChild(l);l.click();l.remove();setTimeout(()=>URL.revokeObjectURL(u),1000)}
+$('csv').onclick=()=>dl('pc-studio-plays.csv','time,game,earned\n'+load().map(x=>new Date(x.t).toISOString()+',"'+String(x.g).replace(/"/g,'""')+'",'+cfg.rate).join('\n'),'text/csv');
+$('json').onclick=()=>dl('pc-studio-plays.json',JSON.stringify(load()),'application/json');
+function merge(n){const a=load(),seen=new Set(a.map(x=>x.t+'|'+x.g));let c=0;n.forEach(x=>{if(x&&typeof x.t==='number'&&x.g&&!seen.has(x.t+'|'+x.g)){a.push({t:x.t,g:String(x.g)});c++}});a.sort((p,q)=>p.t-q.t);save(a);render();return c}
+$('doImp').onclick=()=>{try{const n=JSON.parse($('imp').value);alert(merge(Array.isArray(n)?n:[])+' plays imported')}catch(e){alert('That is not valid JSON')}};
+$('sync').onclick=async()=>{try{const r=await fetch($('url').value.trim());alert(merge(await r.json())+' new plays synced')}catch(e){alert('Could not reach the server')}};
+$('wd').onclick=()=>{let n=$('epNum').value.replace(/\D/g,'');if(n.startsWith('92')&&n.length===12)n='0'+n.slice(2);if(!/^03\d{9}$/.test(n)){alert('Enter a valid Easypaisa number like 03XXXXXXXXX');return}
+ const amt=Math.round(+$('epAmt').value*100)/100,w=wds(),earned=earnedAll(),used=w.filter(x=>x.s!=='Cancelled').reduce((t,x)=>t+x.amt,0);
+ if(!(amt>0)||amt>earned-used+1e-9){alert('Amount must be more than 0 and not more than your available balance');return}
+ w.push({id:Date.now().toString(36),t:Date.now(),num:n,amt:amt,s:'Pending'});saveWd(w);$('epAmt').value='';render()};
+$('wdList').onclick=e=>{const b=e.target.closest('button[data-a]');if(!b)return;const w=wds(),x=w.find(y=>y.id===b.dataset.i);if(!x)return;
+ if(b.dataset.a==='copy'){const t='Easypaisa '+x.num+' - Rs '+x.amt;if(navigator.clipboard)navigator.clipboard.writeText(t).then(()=>alert('Copied: '+t),()=>alert(t));else alert(t)}
+ else if(b.dataset.a==='paid'){const r=prompt('After you send the money from your Easypaisa app, enter the transaction ID:');if(r){x.s='Paid';x.ref=r.trim().slice(0,40);saveWd(w);render()}}
+ else if(confirm('Cancel this withdrawal request?')){x.s='Cancelled';saveWd(w);render()}};
+</script>
+</body>
+</html>

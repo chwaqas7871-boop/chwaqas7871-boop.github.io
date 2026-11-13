@@ -1,0 +1,496 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#070b13">
+<title>PC Studio 3D</title><meta name="description" content="Build a gaming PC in 3D: pick parts, check compatibility, change RGB lighting, power on and play mini games.">
+<style>
+:root{--bg:#070b13;--cyan:#55e5ff;--muted:#9db1ca;--green:#4ce0a0}
+*{box-sizing:border-box}html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:#eef7ff;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial}
+#app{height:100dvh;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px);background:#070b13}
+header{height:46px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 13px;border-bottom:1px solid #25374e;background:#080f1b}
+.brand{font-size:14px;font-weight:900;letter-spacing:1.2px}.brand b{color:var(--cyan)}.live{font-size:10px;color:#9fb7d2;border:1px solid #35506b;border-radius:20px;padding:5px 8px}
+#stage{position:relative;flex:1;min-height:230px;overflow:hidden}canvas{display:block;width:100%;height:100%;touch-action:none}
+.overlay{position:absolute;top:9px;background:#081321d9;border:1px solid #2d4965;border-radius:10px;padding:7px 9px;font-size:10px;color:#c7d8eb;pointer-events:none}
+#hint{left:9px}#viewname{right:9px;color:var(--cyan);max-width:45%;text-align:right}
+#toast{display:none;position:absolute;left:50%;bottom:12px;transform:translateX(-50%);background:#2a1018ee;border:1px solid #79374b;color:#ffd0d8;border-radius:10px;padding:8px 12px;font-size:11px;max-width:92%;text-align:center;pointer-events:none}
+#panel{flex:none;max-height:50%;overflow:auto;background:#0d1626;border-top:1px solid #2b4059;padding:9px 11px calc(9px + env(safe-area-inset-bottom,0px))}
+.selected{display:flex;gap:9px;align-items:flex-start;margin-bottom:8px}.led{width:9px;height:9px;border-radius:50%;background:var(--cyan);box-shadow:0 0 13px var(--cyan);margin-top:5px;flex:none}
+#pname{font-size:14px;font-weight:850}#desc{font-size:10px;color:var(--muted);line-height:1.35;margin-top:2px}
+.row{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:7px}
+button,select,input[type=text]{background:#162940;color:#eaf7ff;border:1px solid #35516d;border-radius:9px;min-height:35px;padding:6px 8px;font-size:11px;font-weight:750}
+input[type=text]{font-weight:500;width:100%}
+button.primary{background:linear-gradient(135deg,#087fa5,#1455a0);border-color:#299ac4}
+button.good{background:#12372f;border-color:#267b62;color:#8fffd0}
+button.danger{background:#351b29;border-color:#79374b;color:#ffbdc8}
+button:disabled{opacity:.35}
+.toolbar{display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap}.toolbar button{min-height:30px}
+#parts{display:flex;gap:5px;overflow-x:auto;padding:1px 0 7px}
+.part{white-space:nowrap;border-radius:18px;min-height:27px;padding:3px 10px;font-size:10px;background:#0c1726}.part.active{border-color:var(--cyan);color:var(--cyan)}.part.off{opacity:.35;text-decoration:line-through}
+.tabs{display:flex;gap:5px;margin:3px 0 7px}.tab{flex:1;min-height:31px;background:#0c1726;color:#9eb4cc;padding:4px 2px;font-size:10px}.tab.active{background:#12324a;border-color:#36a8d1;color:#7ceaff}
+#specs,#games,#rgbp{display:none}.specgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.spec{border:1px solid #293d55;border-radius:9px;padding:7px;background:#0b1523}.spec label{display:block;color:#8fa8c2;font-size:9px;margin-bottom:4px}.spec select{width:100%;min-height:31px;font-size:10px}
+.swatches{display:flex;gap:7px;margin:8px 0}.sw{width:34px;height:34px;min-height:0;border-radius:50%;padding:0;border:2px solid #35516d}
+.metrics{display:flex;gap:6px;flex-wrap:wrap;margin:7px 0}.metric{background:#0a1725;border:1px solid #29435e;border-radius:8px;padding:6px 8px;font-size:10px;color:#b8cce1}.metric b{color:#5ce7ff}
+.game{display:flex;justify-content:space-between;gap:8px;align-items:center;border:1px solid #293e56;border-radius:9px;padding:7px 9px;margin:5px 0;background:#0b1523}.game strong{font-size:11px}.game small{display:block;color:#8fa7c0;font-size:9px;margin-top:2px}
+.rating{font-size:10px;font-weight:800;color:var(--green);white-space:nowrap;text-align:right}.rating.mid{color:#ffd36d}.rating.low{color:#ff8b9b}.game button{min-height:28px;margin-top:4px;padding:3px 10px}
+.note{font-size:9px;color:#8299b2;line-height:1.35;margin-top:6px}
+#loading{position:absolute;inset:0;display:grid;place-items:center;background:#070b13;z-index:5;color:#d9faff;font-size:13px}
+#error{display:none;position:absolute;inset:0;background:#160b12;color:#ffd4da;padding:24px;z-index:6;font-size:13px}
+#specs>.specgrid,#specs>.note{display:none}#ctl{display:none;position:absolute;left:0;right:0;bottom:0;padding:6px 8px;gap:8px;align-items:flex-end;justify-content:space-between;background:linear-gradient(0deg,#050a12ee,#050a1200);pointer-events:none}#ctl>*{pointer-events:auto}.kb{display:grid;grid-template-columns:repeat(3,36px);gap:4px}.kb button{min-height:36px;padding:0;font-size:12px}#mpad{flex:1;max-width:200px;height:78px;border:1px dashed #3b6a8c;border-radius:14px;display:grid;place-items:center;text-align:center;font-size:9px;color:#8fb3cf;touch-action:none;background:#0a1a2a99;padding:4px}.acts{display:flex;flex-direction:column;gap:4px}.acts button{min-height:36px;font-size:10px;padding:4px 12px}
+#adBar{flex:none;height:50px;display:grid;place-items:center;background:#0a111d;border-top:1px solid #25374e;font-size:10px;color:#6f86a0;overflow:hidden;text-align:center}#adOv{display:none;position:absolute;inset:0;background:#02070df2;z-index:8;align-items:center;justify-content:center;flex-direction:column;text-align:center;padding:20px}.adCard{width:min(320px,90%);aspect-ratio:16/10;border-radius:14px;background:linear-gradient(135deg,#1b6fb5,#6a2fb0);display:grid;place-items:center;font-weight:800;font-size:18px;border:1px solid #55e5ff55;margin:6px 0 12px;overflow:hidden}.adTag{font-size:10px;color:#9db1ca;letter-spacing:1px}
+</style>
+</head>
+<body>
+<div id="app">
+<header><div class="brand">PC <b>STUDIO</b> 3D</div><div class="live">Build, RGB, run games</div></header>
+<section id="stage">
+<div id="loading">Preparing your 3D PC…</div><div id="error"></div>
+<div id="hint" class="overlay">Drag to rotate · pinch to zoom · tap parts</div>
+<div id="viewname" class="overlay">Gaming tower + desk setup</div>
+<div id="toast"></div><div id="adOv"><div class="adTag">ADVERTISEMENT</div><div class="adCard">YOUR AD HERE</div><div id="adCount" class="adTag"></div><button id="adSkip" disabled>SKIP AD</button></div><div id="ctl"><div class="kb"><span></span><button data-k="u">W</button><span></span><button data-k="l">A</button><button data-k="d">S</button><button data-k="r">D</button></div><div id="mpad">MOUSE PAD<br>drag to aim · tap to click</div><div class="acts"><button data-k="jump">SPACE</button><button data-k="fire">CLICK</button></div></div>
+</section>
+<div id="adBar"></div><section id="panel">
+<div class="selected"><div class="led"></div><div><div id="pname">Motherboard</div><div id="desc"></div></div></div>
+<div class="row"><button class="danger" id="remove">REMOVE PART</button><button class="primary" id="install">INSTALL PART</button><button class="good" id="power">⏻ POWER ON</button></div>
+<div class="toolbar"><button id="front">FRONT VIEW</button><button id="side">SIDE VIEW</button><button id="desk">DESK VIEW</button><button id="explode">EXPLODED VIEW</button><button id="spin">AUTO-SPIN</button><button id="reset">RESET</button></div>
+<div id="parts"></div>
+<div class="tabs"><button class="tab active" data-tab="build">BUILD</button><button class="tab" data-tab="rgbp">RGB</button><button class="tab" data-tab="specs">PARTS</button><button class="tab" data-tab="games">GAMES</button></div>
+<div id="build"><div class="note">Pick a part from the model or the list. Remove or reinstall components, then power on. A real PC needs a CPU, cooler, RAM, storage, PSU and power cables to boot, and the monitor shows the result.</div></div>
+<div id="rgbp">
+<div class="specgrid">
+<div class="spec"><label>RGB LIGHTING</label><select id="rgbOn"><option value="1" selected>On</option><option value="0">Off</option></select></div>
+<div class="spec"><label>EFFECT</label><select id="rgbMode"><option value="rainbow" selected>Rainbow cycle</option><option value="static">Static color</option><option value="breath">Breathing</option></select></div>
+<div class="spec"><label>PICK A COLOR (static / breathing)</label><input type="color" id="rgbColor" value="#18bfff" style="width:100%;height:31px;border:0;background:none;padding:0"></div>
+<div class="spec"><label>SPEED</label><input type="range" id="rgbSpeed" min=".3" max="3" step=".1" value="1" style="width:100%"></div>
+<div class="spec" style="grid-column:1/3"><label>BRIGHTNESS</label><input type="range" id="rgbBright" min=".3" max="3" step=".1" value="1.6" style="width:100%"></div>
+</div>
+<div class="swatches" id="swatches"></div><div class="spec" style="margin-top:6px"><label>CASE BODY COLOR</label><div class="swatches" id="bodySw"></div><div style="display:flex;gap:8px;align-items:center"><input type="color" id="bodyCol" value="#1a2230" style="width:44px;height:30px;border:0;background:none;padding:0"><select id="bodyRgb" style="flex:1"><option value="0">Body RGB: off</option><option value="1" selected>Body RGB: edge lights</option><option value="2">Body RGB: full body glow</option></select></div></div><div class="spec" style="margin-top:6px"><label>PC POSITION</label><select id="pcPos"><option value="tower" selected>Tower (upright, angled like a real desk)</option><option value="flat">Desktop (lying flat)</option></select></div>
+<div class="note">The lights switch on when the PC is powered on. Fans, GPU, RAM, case strip, mouse and the wall light all follow these settings.</div>
+</div>
+<div id="specs"><div id="builder"></div>
+<div class="specgrid">
+<div class="spec"><label>PROCESSOR</label><select id="cpuSpec"><option value="1">Basic dual-core</option><option value="2" selected>Mid 6-core class</option><option value="3">High 8-core class</option><option value="4">Extreme 16-core class</option></select></div>
+<div class="spec"><label>GRAPHICS CARD</label><select id="gpuSpec"><option value="0">Integrated graphics</option><option value="1">Entry-level GPU</option><option value="2" selected>Mid-range GPU class</option><option value="3">Upper-mid GPU class</option><option value="4">High-end GPU class</option><option value="5">Ultra GPU class</option></select></div>
+<div class="spec"><label>MEMORY (RAM)</label><select id="ramSpec"><option>4</option><option>8</option><option selected>16</option><option>32</option><option>64</option></select></div>
+<div class="spec"><label>STORAGE</label><select id="storageSpec"><option value="0">HDD only</option><option value="1" selected>SSD</option><option value="2">NVMe SSD</option></select></div>
+</div>
+<div class="note">Illustrative estimates, not a real benchmark. Parts you remove in the Build tab are taken into account.</div>
+</div>
+<div id="games">
+<div class="spec" style="margin-bottom:6px"><label>TYPE A COMMAND, FOR EXAMPLE “City Heist run”</label><div style="display:flex;gap:6px"><input type="text" id="cmd" placeholder="City Heist run" autocomplete="off"><button class="primary" id="cmdRun">RUN</button></div></div>
+<select id="gq" style="width:100%;margin-bottom:6px"><option value="1" selected>Graphics: Ultra (locked, never drops during play)</option><option value="0">Graphics: Realistic (depends on your PC parts)</option></select><button class="danger" id="stopGame" style="display:none;width:100%;margin-bottom:6px">STOP GAME</button>
+<div class="metrics" id="metrics"></div>
+<div id="gameList"></div>
+<div class="note">Run shows a short simulated preview on the monitor (launch screen, loading screen and a few seconds of animated gameplay). It is not the real game. Power on the PC first.</div>
+</div>
+</section>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(()=>{
+const $=id=>document.getElementById(id);
+if(!window.THREE){$('loading').style.display='none';const e=$('error');e.style.display='block';e.textContent='3D engine could not load. Connect to the internet and reload.';return;}
+const stage=$('stage'),scene=new THREE.Scene();
+scene.background=new THREE.Color(0x070b13);scene.fog=new THREE.Fog(0x070b13,45,100);
+const camera=new THREE.PerspectiveCamera(36,1,.1,200);
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.shadowMap.autoUpdate=false;renderer.shadowMap.needsUpdate=true;
+renderer.outputEncoding=THREE.sRGBEncoding;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.15;
+stage.appendChild(renderer.domElement);
+
+// ---------- environment reflections (studio softboxes) ----------
+const envS=new THREE.Scene();
+envS.add(new THREE.Mesh(new THREE.BoxGeometry(50,24,50),new THREE.MeshBasicMaterial({color:0x182438,side:THREE.BackSide})));
+[[0,11,0,20,.3,12,6,0xffffff],[-22,3,4,.3,9,14,3.5,0xffffff],[22,2,-6,.3,9,12,4,0xbfe6ff],[0,3,-22,18,7,.3,3,0x40d0ff],[0,2,22,16,6,.3,2.5,0xff6aa8]].forEach(a=>{
+ const m=new THREE.Mesh(new THREE.BoxGeometry(a[3],a[4],a[5]),new THREE.MeshBasicMaterial({color:new THREE.Color(a[7]).multiplyScalar(a[6])}));m.position.set(a[0],a[1],a[2]);envS.add(m)});
+const pm=new THREE.PMREMGenerator(renderer);scene.environment=pm.fromScene(envS,.03).texture;
+
+// ---------- lights ----------
+scene.add(new THREE.HemisphereLight(0xcfe8ff,0x141c2c,.55));
+const key=new THREE.DirectionalLight(0xffffff,1.9);key.position.set(6,13,11);key.castShadow=true;key.shadow.mapSize.set(2048,2048);
+Object.assign(key.shadow.camera,{left:-18,right:18,top:12,bottom:-12,near:1,far:50});key.shadow.bias=-.0004;scene.add(key);
+const fill=new THREE.PointLight(0xffffff,5,10);fill.position.set(0,.2,.6);scene.add(fill);
+const glow=new THREE.PointLight(0x19cfff,0,12);glow.position.set(0,0,-.3);scene.add(glow);
+const monLight=new THREE.PointLight(0x9fd8ff,0,9);monLight.position.set(7.2,-1.2,1.8);scene.add(monLight);
+
+// ---------- procedural textures ----------
+function cv(w,h){const c=document.createElement('canvas');c.width=w;c.height=h;return[c,c.getContext('2d')]}
+function tex(c,rep){const t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncoding;t.anisotropy=8;if(rep){t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(...rep)}return t}
+function pcbTex(){const[c,x]=cv(512,512);x.fillStyle='#0a5c3e';x.fillRect(0,0,512,512);
+ let s=7;const r=()=>(s=(s*16807)%2147483647)/2147483647;
+ x.strokeStyle='#17936a';x.lineWidth=2;for(let i=0;i<90;i++){let px=r()*512,py=r()*512;x.beginPath();x.moveTo(px,py);for(let k=0;k<4;k++){px+=(r()<.5?1:0)*(r()-.5)*160;py+=(r()<.5?0:1)*(r()-.5)*160;x.lineTo(px,py)}x.stroke()}
+ x.fillStyle='#c9a24a';for(let i=0;i<140;i++){x.beginPath();x.arc(r()*512,r()*512,2+r()*2,0,7);x.fill()}
+ x.fillStyle='#07402c';for(let i=0;i<30;i++)x.fillRect(r()*480,r()*480,10+r()*26,6+r()*10);return tex(c)}
+function brushTex(base){const[c,x]=cv(256,256);x.fillStyle=base;x.fillRect(0,0,256,256);for(let i=0;i<900;i++){x.fillStyle='rgba('+(i%2?'255,255,255':'0,0,0')+','+(Math.random()*.08)+')';x.fillRect(0,Math.random()*256,256,1)}return tex(c,[2,2])}
+function meshTex(){const[c,x]=cv(256,512);x.fillStyle='#05080d';x.fillRect(0,0,256,512);x.fillStyle='#2a3b50';for(let j=0;j<64;j++)for(let i=0;i<32;i++){x.beginPath();x.arc(i*8+(j%2)*4+3,j*8+4,2.2,0,7);x.fill()}return tex(c)}
+function woodTex(){const[c,x]=cv(512,256);x.fillStyle='#2a1d16';x.fillRect(0,0,512,256);for(let i=0;i<160;i++){x.fillStyle='rgba('+(Math.random()<.5?'90,60,40':'10,6,4')+','+(.05+Math.random()*.1)+')';x.fillRect(0,Math.random()*256,512,1+Math.random()*2)}return tex(c)}
+function keysTex(){const[c,x]=cv(512,160);x.fillStyle='#0a0f18';x.fillRect(0,0,512,160);for(let r=0;r<5;r++)for(let i=0;i<15;i++){x.fillStyle='#1b2635';x.fillRect(8+i*33,10+r*29,28,24)}x.fillRect(80,128,260,22);return tex(c)}
+function glowTex(){const[c,x]=cv(64,64),g=x.createRadialGradient(32,32,0,32,32,32);g.addColorStop(0,'rgba(255,255,255,1)');g.addColorStop(.35,'rgba(255,255,255,.35)');g.addColorStop(1,'rgba(255,255,255,0)');x.fillStyle=g;x.fillRect(0,0,64,64);return new THREE.CanvasTexture(c)}
+const gTex=glowTex();
+
+// ---------- materials ----------
+const S=(c,m,r,o)=>new THREE.MeshStandardMaterial(Object.assign({color:c,metalness:m,roughness:r},o||{}));
+const mats={
+ case:S(0xffffff,.85,.36,{map:brushTex('#1a2230'),bumpMap:brushTex('#808080'),bumpScale:.5}),edge:S(0x4a5d73,.95,.22),
+ glass:new THREE.MeshPhysicalMaterial({color:0x9fd6ee,transparent:true,opacity:.1,roughness:.04,metalness:.1,clearcoat:1,envMapIntensity:1.6,side:THREE.DoubleSide,depthWrite:false}),
+ board:S(0xffffff,.3,.45,{map:pcbTex()}),black:S(0x0c111a,.5,.38),matte:S(0x151b26,.2,.6),
+ silver:S(0xffffff,.95,.25,{map:brushTex('#aab6c3'),bumpMap:brushTex('#808080'),bumpScale:.6}),copper:S(0xc8743a,.95,.22),gold:S(0xe0ae48,.95,.18),
+ blue:S(0x167fe0,.5,.3),purple:S(0x8b45d6,.5,.3),red:S(0xd33350,.4,.35),blade:S(0x0a0e15,.3,.5,{transparent:true,opacity:.92}),
+ desk:S(0xffffff,.25,.4,{map:woodTex()}),floor:S(0x0d1522,.4,.35),plastic:S(0x10151e,.1,.55)
+};
+const rgbMats=[],glows=[];function rgb(){const m=S(0x111111,.3,.3,{emissive:0x000000,emissiveIntensity:1.6});rgbMats.push(m);return m}
+
+// ---------- scene graph helpers ----------
+const root=new THREE.Group();scene.add(root);const pc=new THREE.Group();root.add(pc);
+const parts={},spinners=[];let selected='Motherboard',exploded=false,powered=false;
+function grp(n,d){const g=new THREE.Group();g.userData.part=n;(n==='Monitor'||n==='Keyboard'||n==='Mouse'?root:pc).add(g);parts[n]={g,desc:d,installed:true,home:g.position.clone()};return g}
+function add(g,n,geo,x,y,z,m,noShadow){const o=new THREE.Mesh(geo,m);o.position.set(x,y,z);o.castShadow=!noShadow;o.receiveShadow=true;if(n)o.userData.part=n;g.add(o);return o}
+function bx(g,n,w,h,d,x,y,z,m){return add(g,n,new THREE.BoxGeometry(w,h,d),x,y,z,m)}
+function rb(g,n,w,h,d,x,y,z,m,r){r=Math.min(r===undefined?.05:r,w/2-.001,h/2-.001);const a=-w/2,b=-h/2,s=new THREE.Shape();
+ s.moveTo(a+r,b);s.lineTo(-a-r,b);s.quadraticCurveTo(-a,b,-a,b+r);s.lineTo(-a,-b-r);s.quadraticCurveTo(-a,-b,-a-r,-b);s.lineTo(a+r,-b);s.quadraticCurveTo(a,-b,a,-b-r);s.lineTo(a,b+r);s.quadraticCurveTo(a,b,a+r,b);
+ const geo=new THREE.ExtrudeGeometry(s,{depth:d,bevelEnabled:false,curveSegments:5});geo.translate(0,0,-d/2);return add(g,n,geo,x,y,z,m)}
+function cyl(g,n,r,h,x,y,z,m){return add(g,n,new THREE.CylinderGeometry(r,r,h,32).rotateX(Math.PI/2),x,y,z,m)}
+function fan(g,n,x,y,z,r){
+ rb(g,n,r*2.25,r*2.25,.1,x,y,z-.03,mats.black,r*.25);
+ const rm=rgb();add(g,n,new THREE.TorusGeometry(r*1.02,r*.06,10,48),x,y,z+.03,rm,true);
+ const sm=new THREE.SpriteMaterial({map:gTex,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false,opacity:0}),sp2=new THREE.Sprite(sm);sp2.position.set(x,y,z+.12);sp2.scale.setScalar(r*3.4);g.add(sp2);glows.push({sm,i:rgbMats.length-1});
+ const sp=new THREE.Group();sp.position.set(x,y,z+.03);g.add(sp);
+ for(let i=0;i<9;i++){const w=new THREE.Group();w.rotation.z=i*Math.PI*2/9;const b=new THREE.Mesh(new THREE.BoxGeometry(r*.36,r*.78,.012),mats.blade);b.position.y=r*.5;b.rotation.y=.55;b.userData.part=n;w.add(b);sp.add(w)}
+ cyl(sp,n,r*.24,.07,0,0,.02,mats.silver);spinners.push(sp)}
+
+// ---------- desk and room ----------
+const desk=new THREE.Group();scene.add(desk);
+bx(desk,null,26,.25,9,3.5,-3.175,.5,mats.desk);
+for(const x of[-8.5,15.3])for(const z of[-3.2,4])bx(desk,null,.35,3.1,.35,x,-4.75,z,mats.edge);
+const fl=new THREE.Mesh(new THREE.PlaneGeometry(200,200),mats.floor);fl.rotation.x=-Math.PI/2;fl.position.y=-6.3;fl.receiveShadow=true;scene.add(fl);
+const wall=new THREE.Mesh(new THREE.PlaneGeometry(80,30),S(0x0b1220,.1,.9));wall.position.set(3.5,5,-6.5);scene.add(wall);
+add(scene,null,new THREE.BoxGeometry(24,.08,.08),3.5,1.2,-6.4,rgb(),true);
+bx(desk,null,9,.02,3.6,8.1,-3.04,1.9,S(0x0c1018,.1,.7));bx(desk,null,9,.03,.05,8.1,-3.02,3.7,rgb());
+for(const x of[4.1,10.3]){bx(desk,null,.9,1.6,.9,x,-2.25,-.5,mats.plastic);cyl(desk,null,.3,.04,x,-2.0,-.04,mats.matte);cyl(desk,null,.1,.04,x,-1.45,-.04,mats.matte)}
+add(desk,null,new THREE.CylinderGeometry(.25,.22,.5,24),11.9,-2.8,1.0,S(0xe8e8ee,.1,.4));add(desk,null,new THREE.TorusGeometry(.14,.035,8,16),12.15,-2.8,1.0,S(0xe8e8ee,.1,.4));
+add(desk,null,new THREE.CylinderGeometry(.4,.32,.6,20),12.6,-2.75,-1.8,S(0x2a2f3a,.2,.6));for(let i=0;i<7;i++){const lf=add(desk,null,new THREE.SphereGeometry(.28,12,10),12.6+Math.cos(i*2)*.3,-2.1+i*.08,-1.8+Math.sin(i*2)*.3,S(0x2f9e57,0,.7));lf.scale.set(1,1.8,1)}
+add(desk,null,new THREE.CylinderGeometry(.4,.45,.08,24),-4.4,-3.0,-1.0,mats.black);add(desk,null,new THREE.CylinderGeometry(.04,.04,2.2,10),-4.4,-1.9,-1.0,mats.silver).rotation.z=-.25;add(desk,null,new THREE.ConeGeometry(.4,.5,24,1,true),-4.0,-.85,-1.0,S(0xffe2b0,.1,.5,{emissive:0xffc070,emissiveIntensity:.8,side:THREE.DoubleSide})).rotation.z=-.6;
+add(desk,null,new THREE.CylinderGeometry(.35,.38,.06,24),-3.4,-3.0,1.2,mats.black);bx(desk,null,.08,1.2,.08,-3.4,-2.4,1.2,mats.silver);add(desk,null,new THREE.TorusGeometry(.42,.05,8,24,Math.PI),-3.4,-1.8,1.2,mats.matte);for(const dx of[-.42,.42])add(desk,null,new THREE.CylinderGeometry(.2,.2,.14,20).rotateZ(Math.PI/2),-3.4+dx,-1.8,1.2,mats.black);
+function poster(x,y,a,b){const[c,q]=cv(256,360),k=q.createLinearGradient(0,0,256,360);k.addColorStop(0,a);k.addColorStop(1,b);q.fillStyle=k;q.fillRect(0,0,256,360);q.fillStyle='rgba(255,255,255,.18)';q.beginPath();q.arc(128,150,70,0,7);q.fill();q.fillStyle='rgba(0,0,0,.35)';q.fillRect(0,250,256,110);q.fillStyle='#fff';q.font='bold 26px system-ui';q.textAlign='center';q.fillText('PC STUDIO',128,305);add(scene,null,new THREE.PlaneGeometry(2.6,3.6),x,y,-6.4,new THREE.MeshBasicMaterial({map:tex(c)}),true)}poster(-2,3.2,'#ff2bd6','#2a1060');poster(9,3.8,'#00e0ff','#0a2a60');poster(13,3.2,'#ffb300','#802030');
+
+// ---------- tower PC case (taller than wide) ----------
+(function(){const g=grp('PC Case','Tempered-glass gaming tower: steel frame, mesh front, glass side panel and RGB lighting.');
+ bx(g,'PC Case',4.3,5.7,.14,0,0,-1.28,mats.case);
+ bx(g,'PC Case',4.3,.14,2.7,0,2.78,0,mats.case);bx(g,'PC Case',4.3,.14,2.7,0,-2.78,0,mats.case);
+ bx(g,'PC Case',.14,5.7,2.7,-2.08,0,0,mats.case);bx(g,'PC Case',.14,5.7,2.7,2.08,0,0,mats.case);
+ const fm=new THREE.Mesh(new THREE.PlaneGeometry(2.4,5.4),new THREE.MeshStandardMaterial({map:meshTex(),metalness:.5,roughness:.5}));fm.position.set(-2.16,0,0);fm.rotation.y=-Math.PI/2;fm.userData.part='PC Case';g.add(fm);
+ bx(g,'PC Case',1.2,.02,1.6,0,2.86,-.2,mats.black);
+ add(g,null,new THREE.BoxGeometry(4.1,5.5,.03),0,0,1.35,mats.glass,true);
+ for(const y of[2.82,-2.82])bx(g,'PC Case',4.4,.12,.14,0,y,1.38,mats.edge);for(const x of[-2.16,2.16])bx(g,'PC Case',.12,5.7,.14,x,0,1.38,mats.edge);
+ const ms=new THREE.Mesh(new THREE.PlaneGeometry(1.0,5.4),new THREE.MeshStandardMaterial({map:meshTex(),metalness:.5,roughness:.5}));ms.position.set(-1.5,0,-1.2);ms.userData.part='PC Case';g.add(ms);
+ bx(g,'PC Case',.05,5.3,.05,-1.97,0,1.3,rgb());
+ for(const x of[-1.5,1.5])for(const z of[-.7,.7])bx(g,'PC Case',.7,.2,.5,x,-2.95,z,mats.black);
+ cyl(g,'PC Case',.08,.05,1.7,2.82,1.46,rgb());for(const x of[-2.16,2.16])for(const y of[2.82,-2.82])cyl(g,'PC Case',.05,.04,x,y,1.47,mats.silver);bx(g,'PC Case',.6,.03,.02,0,-2.82,1.46,rgb());bx(g,'PC Case',.5,.05,.22,-1.2,2.87,.7,mats.black);for(let i=0;i<2;i++)bx(g,'PC Case',.12,.03,.05,-1.3+i*.2,2.9,.7,mats.silver);
+})();
+// ---------- motherboard ----------
+(function(){const g=grp('Motherboard','Central circuit board. It connects the processor, memory, storage, graphics and power.');
+ bx(g,'Motherboard',2.7,3.0,.08,.5,.5,-1.1,mats.board);
+ rb(g,'Motherboard',.9,.35,.1,.2,1.83,-1.0,mats.black,.04);for(let i=0;i<8;i++)bx(g,'Motherboard',.8,.03,.12,.2,1.7+i*.035,-.95,mats.silver);
+ rb(g,'Motherboard',.4,.4,.08,1.2,.05,-1.02,mats.black,.04);rb(g,'Motherboard',.35,1.1,.1,1.75,1.3,-1.0,mats.matte,.04);for(const x of[.8,1.1,1.4])bx(g,'Motherboard',.1,1.3,.05,x,1.3,-1.05,mats.black);cyl(g,'Motherboard',.1,.03,.75,0,-1.03,mats.silver);bx(g,'Motherboard',.3,.03,.02,1.2,.28,-.97,rgb());for(const p of[[-.75,1.9],[1.75,1.9],[-.75,-.9],[1.75,-.9],[-.75,.5],[1.75,.5]])cyl(g,'Motherboard',.045,.04,p[0],p[1],-1.04,mats.silver);bx(g,'Motherboard',.5,.1,.08,1.55,-.9,-1.02,mats.black);bx(g,'Motherboard',.12,.75,.1,1.82,.25,-1.0,S(0xdddddd,.1,.6));
+})();
+// CPU + cooler
+(function(){const g=grp('CPU','The processor executes instructions and does the calculations.');
+ bx(g,'CPU',.75,.75,.05,.2,1.3,-1.06,mats.black);bx(g,'CPU',.55,.55,.05,.2,1.3,-1.02,mats.silver);
+ const c=grp('CPU Cooler','Tower heatsink and fan carry heat away from the CPU.');
+ bx(c,'CPU Cooler',1.0,1.0,.14,.2,1.3,-.95,mats.silver);
+ for(const dx of[-.1,.5])add(c,'CPU Cooler',new THREE.CylinderGeometry(.045,.045,1.0,12),dx,1.3,-.85,mats.copper);
+ for(let i=0;i<14;i++)bx(c,'CPU Cooler',.04,1.0,.5,-.26+i*.075,1.3,-.55,mats.silver);
+ fan(c,'CPU Cooler',.2,1.3,-.28,.4);
+})();
+// RAM
+for(let n=0;n<2;n++){const name='RAM '+(n+1),x=1.1+n*.3,g=grp(name,'RAM is fast temporary memory for the apps and games that are running.');
+ bx(g,name,.1,1.25,.1,x,1.3,-1.02,mats.black);rb(g,name,.07,1.15,.12,x,1.3,-.95,n?mats.purple:mats.blue,.02);
+ add(g,name,new THREE.BoxGeometry(.09,1.05,.04),x,1.3,-.88,rgb(),true)}
+// GPU
+(function(){const g=grp('Graphics Card (GPU)','The graphics card renders game visuals, effects and 3D scenes.');
+ rb(g,'Graphics Card (GPU)',2.7,.62,.5,.55,-.45,-.75,mats.black,.06);bx(g,'Graphics Card (GPU)',2.6,.04,.3,.55,-.15,-.5,mats.edge);
+ bx(g,'Graphics Card (GPU)',2.6,.02,.5,.55,-.78,-.75,mats.gold);
+ for(const x of[-.05,.65,1.35])fan(g,'Graphics Card (GPU)',x,-.45,-.5,.24);
+ bx(g,'Graphics Card (GPU)',.08,.6,.16,-.85,-.45,-.7,mats.silver);bx(g,'Graphics Card (GPU)',2.6,.03,.04,.55,-.14,-.5,rgb());for(let i=0;i<3;i++)add(g,'Graphics Card (GPU)',new THREE.CylinderGeometry(.03,.03,2.5,12).rotateZ(Math.PI/2),.55,-.11,-.9+i*.12,mats.copper);
+})();
+// storage, PSU, fans, I/O, cables
+(function(){const g=grp('SSD','M.2 NVMe SSD with a heatsink. Solid-state storage is fast and has no moving parts.');
+ rb(g,'SSD',.75,.2,.05,.2,.42,-1.04,mats.black,.02);bx(g,'SSD',.6,.16,.03,.2,.42,-1.0,mats.copper);
+ const h=grp('Hard Drive (HDD)','A hard disk stores files on spinning magnetic platters. It is cheaper but slower.');
+ rb(h,'Hard Drive (HDD)',1.0,.62,.35,-1.45,-2.2,-1.0,mats.silver,.03);bx(h,'Hard Drive (HDD)',.8,.5,.02,-1.45,-2.2,-.81,mats.edge);
+ const p=grp('Power Supply (PSU)','The PSU converts mains electricity into safe DC power for all components.');
+ bx(p,'Power Supply (PSU)',2.7,.8,1.2,.55,-2.25,-.6,mats.black);cyl(p,'Power Supply (PSU)',.28,.04,.55,-2.25,.02,mats.matte);bx(p,'Power Supply (PSU)',2.75,.04,1.25,.55,-1.83,-.6,mats.edge);
+ const e=grp('Rear Exhaust Fan','The top-rear fan pushes hot air out of the case.');fan(e,'Rear Exhaust Fan',1.45,2.38,-.7,.3);
+ const f=grp('Case Fans','Front intake fans pull cool air into the case.');for(const y of[1.9,.7,-.5])fan(f,'Case Fans',-1.5,y,-.3,.42);
+ const io=grp('Rear I/O Ports','USB, network, audio and display connectors on the rear panel.');
+ bx(io,'Rear I/O Ports',.3,1.1,.35,1.85,.95,-.95,mats.silver);for(let i=0;i<4;i++)bx(io,'Rear I/O Ports',.05,.14,.1,2.0,.6+i*.25,-.85,mats.blue);
+ const w=grp('Power Cables','Cables carry power from the PSU to the motherboard, CPU and graphics card.');
+ [[[1.7,-1.83,-.8],[1.95,-1.3,-.7],[1.95,.1,-.9],[1.7,.6,-1.0]],[[1.2,-1.83,-.9],[1.99,-1.2,-.7],[1.99,2.0,-.8],[.7,2.0,-1.0]],[[.9,-1.83,-.7],[1.2,-1.3,-.5],[1.6,-.9,-.5],[1.55,-.75,-.55]]].forEach((a,i)=>{
+  add(w,'Power Cables',new THREE.TubeGeometry(new THREE.CatmullRomCurve3(a.map(q=>new THREE.Vector3(...q))),30,.045,8),0,0,0,i==1?mats.red:mats.matte)})
+})();
+
+// ---------- monitor, keyboard, mouse ----------
+const[sc,sx]=cv(1280,720),stex=new THREE.CanvasTexture(sc);stex.encoding=THREE.sRGBEncoding;stex.anisotropy=8;
+const scr={mode:'off',pct:0,msg:'',g:null,gameErr:false};
+const GAMES=[
+ ['Block Builder','Light / sandbox',0,'blocks',['#6ec6ff','#7bd44a','#8a5a33'],['blockbuilder']],
+ ['Tactical Strike','Competitive shooter',1,'shooter',['#ff4655','#0f1923','#ece8e1'],['tacticalstrike']],
+ ['Survival Royale Lite','Mobile-style shooter',1,'shooter',['#ffb21a','#ff6a00','#14202e'],['survivalroyalelite']],
+ ['City Heist','Open-world action',2,'city',['#ff8a3d','#ffd27a','#3a1f5c'],['cityheist','heist']],
+ ['Bomb Squad 2','Competitive shooter',2,'shooter',['#f5a623','#2b3a4a','#d9e2ec'],['bombsquad2','bombsquad']],
+ ['Sky Royale','Battle royale',3,'sky',['#4aa8ff','#b9e4ff','#ff7bd5'],['skyroyale']],
+ ['Horizon Racer 5','Racing / open world',3,'racing',['#ff9f43','#2b6cb0','#2d3748'],['horizonracer5','horizonracer']],
+ ['Ashen Crown','Action RPG',3,'fantasy',['#e6b450','#1d1a14','#6b5b3a'],['ashencrown']],
+ ['Dust Outlaw 2','Open-world action',4,'city',['#f2a65a','#e07b39','#4a2c1a'],['dustoutlaw2','dustoutlaw']],
+ ['Neon City 2088','Open-world RPG',4,'city',['#00f0ff','#ff2bd6','#120a2a'],['neoncity2088','neoncity']],
+ ['Arena Legends','Battle royale shooter',3,'shooter',['#ff4d4d','#1a1d26','#f3f3f3'],['arenalegends']],
+ ['Combat Zone','Battle royale shooter',3,'shooter',['#7fff7f','#1c2418','#e8efe0'],['combatzone']],
+ ['Last Squad Standing','Battle royale',3,'sky',['#7fb4ff','#f2d9a0','#6b7f3a'],['lastsquadstanding']],
+ ['Craft Playground','Sandbox platform',0,'blocks',['#8fd3ff','#53c26b','#b0703a'],['craftplayground']],
+ ['Dig and Dungeon','2D sandbox',1,'blocks',['#5aa9e6','#5fbf4a','#6b4a2f'],['diganddungeon','digdungeon']],
+ ['Turbo Ball League','Car soccer',1,'racing',['#4f9cff','#ff8a3d','#1a2a44'],['turboballleague','turboball']],
+ ['Street Velocity','Street racing',3,'racing',['#ff3b6b','#ffb300','#1a1030'],['streetvelocity']],
+ ['Shadow Blade','Open-world stealth',3,'fantasy',['#e8d9b5','#2b2a2e','#7a6a52'],['shadowblade']],
+ ['Silver Hunter 3','Open-world RPG',3,'fantasy',['#c0d6df','#2a3a40','#7a8d92'],['silverhunter3','silverhunter']],
+ ['Titan Wrath','Action adventure',4,'fantasy',['#d8e6ff','#1a2230','#5a6f8f'],['titanwrath']],
+ ['City Climber','Open-world action',3,'city',['#ff4d5a','#ffd0a0','#2a2a5a'],['cityclimber']],
+ ['Sky Realm Quest','Open-world RPG',2,'sky',['#7fd8ff','#fff0b0','#ffd36a'],['skyrealmquest','skyrealm']],
+ ['Lane Heroes','MOBA',1,'fantasy',['#6bb6ff','#0b1a2e','#1a3a5a'],['laneheroes']],
+ ['Tower Wars 2','MOBA',1,'fantasy',['#ff6a4d','#1e1410','#4a2a20'],['towerwars2','towerwars']]];
+function scene2d(c,g,t){const[p1,p2,p3]=g.pal,W=640,H=360;let k;
+ if(g.type==='blocks'){k=c.createLinearGradient(0,0,0,H);k.addColorStop(0,p1);k.addColorStop(1,'#d8f1ff');c.fillStyle=k;c.fillRect(0,0,W,H);
+  c.fillStyle='#fff7a8';c.fillRect(500,40,44,44);c.fillStyle='rgba(255,255,255,.9)';for(let i=0;i<4;i++){const x=(((i*190-t*20)%760)+760)%760-120;c.fillRect(x,50+i*18,110,24)}
+  const o=(t*80)%40,b=Math.floor(t*2);for(let i=-1;i<18;i++){const n=i+b,h=g.play?2:Math.max(2,Math.round(3+2*Math.sin(n*.6)+Math.sin(n*1.7))),x=i*40-o+Math.floor(t*2)*0;c.fillStyle=p3;c.fillRect(x,H-h*40+0,40,h*40);c.fillStyle=p2;c.fillRect(x,H-h*40,40,10);c.strokeStyle='rgba(0,0,0,.18)';c.strokeRect(x,H-h*40,40,40)}
+  const jy=g.play?g.st.y:0,py=g.play?240:170;c.fillStyle='#2a6bd6';c.fillRect(290,py-jy,26,40);c.fillStyle='#e8b98a';c.fillRect(290,py-24-jy,26,24);}
+ else if(g.type==='shooter'){k=c.createLinearGradient(0,0,0,H);k.addColorStop(0,p2);k.addColorStop(1,'#05080c');c.fillStyle=k;c.fillRect(0,0,W,H);
+  c.strokeStyle='rgba(255,255,255,.16)';for(let i=-8;i<=8;i++){c.beginPath();c.moveTo(320+i*20,180);c.lineTo(320+i*90,H);c.stroke()}
+  for(let i=0;i<8;i++){const y=180+Math.pow(((i+t*.6)%8)/8,2)*180;c.beginPath();c.moveTo(0,y);c.lineTo(W,y);c.stroke()}
+  c.fillStyle='rgba(255,255,255,.06)';c.fillRect(60,70,120,110);c.fillRect(470,90,110,90);
+  for(let i=0;i<(g.play?0:3);i++){const a=t*1.3+i*2,x=320+Math.sin(a)*190,y=165+Math.cos(a*1.7)*25;c.fillStyle=p1;c.beginPath();c.arc(x,y,13,0,7);c.fill();c.fillRect(x-9,y+11,18,30)}
+  c.strokeStyle=p3;c.lineWidth=2;c.beginPath();if(!g.play){c.moveTo(320,170);c.lineTo(320,184);c.moveTo(320,176);c.lineTo(334,176);c.moveTo(320,176);c.lineTo(306,176)}c.stroke();c.lineWidth=1;
+  c.fillStyle='#1a222c';c.beginPath();c.moveTo(430,360);c.lineTo(470,280);c.lineTo(560,270);c.lineTo(600,360);c.fill();
+  if(Math.sin(t*14)>.85){c.fillStyle='#ffe28a';c.beginPath();c.arc(468,278,20,0,7);c.fill()}}
+ else if(g.type==='sky'){k=c.createLinearGradient(0,0,0,H);k.addColorStop(0,p1);k.addColorStop(1,p2);c.fillStyle=k;c.fillRect(0,0,W,H);
+  c.fillStyle='rgba(255,255,255,.85)';for(let i=0;i<6;i++){const x=(((i*150-t*45)%900)+900)%900-150,y=230+(i%3)*40;c.beginPath();c.ellipse(x,y,70,18,0,0,7);c.fill()}
+  c.fillStyle='#4cae5a';c.beginPath();c.moveTo(0,360);c.lineTo(80,300);c.lineTo(220,320);c.lineTo(400,290);c.lineTo(640,330);c.lineTo(640,360);c.fill();
+  const x=g.play?g.st.x:320+Math.sin(t*.8)*70,y=g.play?g.st.y:120+Math.sin(t*1.1)*8;c.fillStyle=p3;c.beginPath();c.arc(x,y,60,Math.PI,0);c.fill();c.strokeStyle='#fff';c.beginPath();c.moveTo(x-60,y);c.lineTo(x,y+70);c.lineTo(x+60,y);c.stroke();c.fillStyle='#2a3b50';c.fillRect(x-7,y+66,14,26)}
+ else if(g.type==='fantasy'){k=c.createLinearGradient(0,0,0,H);k.addColorStop(0,p2);k.addColorStop(1,p3);c.fillStyle=k;c.fillRect(0,0,W,H);
+  for(let L=0;L<3;L++){c.fillStyle='rgba(10,8,6,'+(.35+L*.25)+')';c.beginPath();c.moveTo(0,H);for(let x=0;x<=W;x+=40)c.lineTo(x,200+L*40-Math.abs(Math.sin(x*.01+L*2+t*.05*(L+1)))*90);c.lineTo(W,H);c.fill()}
+  c.fillStyle='rgba(230,200,150,.12)';c.fillRect(0,230,W,60);
+  const jy=g.play?g.st.y:0;c.fillStyle='#050403';c.fillRect(300,200-jy,30,80);c.beginPath();c.moveTo(300,205-jy);c.lineTo(270+Math.sin(t*3)*6,285-jy);c.lineTo(330,285-jy);c.fill();
+  c.strokeStyle=p1;c.lineWidth=4;c.shadowColor=p1;c.shadowBlur=14;c.beginPath();c.moveTo(330,230-jy);c.lineTo(375,170-jy+Math.sin(t*5)*8);c.stroke();c.shadowBlur=0;c.lineWidth=1;
+  c.fillStyle=p1;for(let i=0;i<40;i++){c.fillRect((i*53+Math.sin(t+i)*20+W)%W,H-((t*40+i*37)%H),2,2)}}
+ else{k=c.createLinearGradient(0,0,0,H*.62);k.addColorStop(0,p3);k.addColorStop(1,p1);c.fillStyle=k;c.fillRect(0,0,W,H);
+  c.fillStyle=p2;c.beginPath();c.arc(470,150,38,0,7);c.fill();
+  for(let L=0;L<2;L++){c.fillStyle=L?'rgba(10,8,20,.88)':'rgba(30,20,50,.6)';const off=(t*(14+L*30))%120;for(let i=-1;i<8;i++){const h=60+((i*37+L*53)%70)+L*20;c.fillRect(i*120-off,215-h,70,h+10);if(L&&g.pal[0]==='#00f0ff'){c.fillStyle=i%2?p1:p2;c.fillRect(i*120-off+8,215-h+10,6,h-14);c.fillStyle='rgba(10,8,20,.88)'}}}
+  c.fillStyle='#14121a';c.fillRect(0,215,W,145);c.fillStyle='#ffd27a';for(let i=0;i<8;i++)c.fillRect(((i*100-t*300)%800+800)%800-100,292,50,5);
+  const by=g.play?266-g.st.y:266+Math.sin(t*9)*1.2,col=g.type==='racing'?'#ffcf33':'#d33350';c.fillStyle=col;c.fillRect(250,by-14,130,26);c.beginPath();c.moveTo(275,by-14);c.lineTo(295,by-36);c.lineTo(350,by-36);c.lineTo(368,by-14);c.fill();
+  c.fillStyle='rgba(150,210,255,.85)';c.fillRect(299,by-32,46,16);c.fillStyle='#050508';for(const x of[280,350]){c.beginPath();c.arc(x,by+12,13,0,7);c.fill()}
+  c.fillStyle='#ff3030';c.fillRect(250,by-8,6,6);if(g.type==='racing'){c.strokeStyle='rgba(255,255,255,.35)';for(let i=0;i<12;i++){const y=230+i*11,x=((i*97+t*500)%640);c.beginPath();c.moveTo(x,y);c.lineTo(x-60,y);c.stroke()}}}
+ // HUD
+ c.fillStyle='rgba(0,0,0,.45)';c.beginPath();c.arc(60,300,38,0,7);c.fill();c.strokeStyle='rgba(255,255,255,.5)';c.stroke();c.fillStyle=p1;c.beginPath();c.arc(60+Math.sin(t)*14,300-8,4,0,7);c.fill();
+ c.fillStyle='rgba(0,0,0,.5)';c.fillRect(110,320,150,8);c.fillStyle='#4ce0a0';c.fillRect(110,320,150*(.8+.1*Math.sin(t*.7)),8);
+ c.textAlign='right';c.font='bold 14px monospace';c.fillStyle='#7dff9b';c.fillText((g.fps+Math.round(Math.sin(t*3)*3))+' FPS',626,24);c.font='10px system-ui';c.fillStyle='rgba(255,255,255,.6)';c.fillText('Mini-game version of the game',626,350);c.textAlign='center'}
+function fx(c,g,t){c.save();c.globalCompositeOperation='lighter';const sx2=g.type==='shooter'?160:470,sy2=g.type==='shooter'?90:150,b=c.createRadialGradient(sx2,sy2,0,sx2,sy2,170);b.addColorStop(0,'rgba(255,220,160,.30)');b.addColorStop(1,'rgba(255,220,160,0)');c.fillStyle=b;c.fillRect(0,0,640,360);for(let i=0;i<3;i++){const x=i*230+((t*25)%230),k=c.createLinearGradient(x,0,x+120,360);k.addColorStop(0,'rgba(255,255,255,0)');k.addColorStop(.5,'rgba(255,255,255,.05)');k.addColorStop(1,'rgba(255,255,255,0)');c.fillStyle=k;c.fillRect(x,0,120,360)}c.fillStyle='rgba(255,255,255,.5)';for(let i=0;i<36;i++){c.fillRect((i*97+t*(8+i%5*4))%640,(i*53+Math.sin(t+i)*14+t*6*(1+i%3))%360,1.6,1.6)}c.restore()}
+const inp={l:0,r:0,u:0,d:0,jump:0,fire:0,dx:0,dy:0};function play(c,g){const now=performance.now(),dt=Math.min(.05,(now-(g.last||now))/1000);g.last=now;const s=g.st,p1=g.pal[0],p3=g.pal[2];s.t+=dt;const fire=inp.fire;inp.fire=0;c.textAlign='left';if(g.type==='shooter'){s.mx=Math.max(0,Math.min(640,s.mx+(inp.r-inp.l)*300*dt+inp.dx));s.my=Math.max(0,Math.min(330,s.my+(inp.d-inp.u)*300*dt+inp.dy));inp.dx=inp.dy=0;s.nx-=dt;if(s.nx<=0){s.tg.push({x:60+Math.random()*520,y:70+Math.random()*190,l:2.4});s.nx=.7}if(fire){const i=s.tg.findIndex(o=>Math.hypot(o.x-s.mx,o.y-s.my)<26);if(i>=0){s.tg.splice(i,1);s.score+=10}s.fl=.08}s.tg=s.tg.filter(o=>(o.l-=dt)>0);s.tg.forEach(o=>{c.fillStyle=p1;c.beginPath();c.arc(o.x,o.y,15,0,7);c.fill();c.fillStyle=p3;c.beginPath();c.arc(o.x,o.y,6,0,7);c.fill()});c.strokeStyle='#fff';c.lineWidth=2;c.beginPath();c.moveTo(s.mx-12,s.my);c.lineTo(s.mx+12,s.my);c.moveTo(s.mx,s.my-12);c.lineTo(s.mx,s.my+12);c.stroke();c.lineWidth=1;if(s.fl>0){s.fl-=dt;c.fillStyle='rgba(255,230,140,.5)';c.beginPath();c.arc(s.mx,s.my,10,0,7);c.fill()}}else if(g.type==='sky'){s.x=Math.max(60,Math.min(580,s.x+(inp.r-inp.l)*240*dt+inp.dx));s.y=Math.max(60,Math.min(200,s.y+(inp.d-inp.u)*200*dt+inp.dy));inp.dx=inp.dy=0;s.nx-=dt;if(s.nx<=0){s.tg.push({x:80+Math.random()*480,y:-20});s.nx=.8}s.tg.forEach(o=>{o.y+=130*dt;c.strokeStyle=p3;c.lineWidth=4;c.beginPath();c.arc(o.x,o.y,18,0,7);c.stroke();if(Math.hypot(o.x-s.x,o.y-(s.y+30))<42){o.y=999;s.score+=10}});c.lineWidth=1;s.tg=s.tg.filter(o=>o.y<400);s.score+=dt}else{const gb=g.type==='blocks'?280:g.type==='fantasy'?285:288;if((inp.jump||inp.u)&&s.y<=0)s.vy=520;s.vy-=1500*dt;s.y=Math.max(0,s.y+s.vy*dt);if(s.y===0&&s.vy<0)s.vy=0;const sp=260*(1+(inp.r?.4:0)-(inp.l?.3:0));s.nx-=dt;if(s.nx<=0){s.tg.push({x:680,w:30,h:34+Math.random()*22});s.nx=1.1+Math.random()*1.1}if(fire){const o=s.tg.filter(o=>o.x>330&&o.x<520).sort((a,b)=>a.x-b.x)[0];if(o){o.x=-999;s.score+=5;c.fillStyle='#ffe28a';c.fillRect(335,gb-50,150,3)}}s.tg.forEach(o=>{o.x-=sp*dt;c.fillStyle=g.type==='fantasy'?'#7a1f2a':'#c58b3a';c.fillRect(o.x,gb-o.h,o.w,o.h);c.strokeStyle='rgba(0,0,0,.55)';c.strokeRect(o.x,gb-o.h,o.w,o.h);if(o.x<340&&o.x+o.w>270&&s.y<o.h-4&&s.hurt<=0){s.hp--;s.hurt=1;o.x=-999}});s.tg=s.tg.filter(o=>o.x>-100);s.hurt-=dt;s.score+=dt*8;if(s.hp<=0){s.over=1.6;s.hp=3;s.score=0;s.tg=[]}if(s.hurt>.5){c.fillStyle='rgba(255,40,60,.25)';c.fillRect(0,0,640,360)}}fx(c,g,s.t);const vg=c.createRadialGradient(320,180,130,320,180,400);vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,.45)');c.fillStyle=vg;c.fillRect(0,0,640,360);c.fillStyle='#fff';c.font='bold 16px monospace';c.fillText('SCORE '+Math.floor(s.score),14,26);if(g.type!=='shooter'&&g.type!=='sky')c.fillText('♥'.repeat(Math.max(0,s.hp)),14,48);if(s.over>0){s.over-=dt;c.textAlign='center';c.font='bold 30px system-ui';c.fillStyle='#ff6b81';c.fillText('GAME OVER',320,170);c.textAlign='left'}c.font='10px system-ui';c.fillStyle='rgba(255,255,255,.65)';c.fillText('WASD move · Space jump · Click or F action',14,350);c.textAlign='center'}
+function drawScreen(){const c=sx;c.setTransform(2,0,0,2,0,0);c.fillStyle='#030508';c.fillRect(0,0,640,360);c.textAlign='center';
+ if(scr.mode==='post'){c.fillStyle='#cfd8e3';c.font='13px monospace';c.textAlign='left';const u=CAT.cpu[Bd.cpu],m=CAT.mb[Bd.mb],gp=CAT.gpu[Bd.gpu],r=CAT.ram[Bd.ram],st=CAT.st[Bd.st];const L=['PC STUDIO BIOS v2.4','Board  : '+m[0]+' ('+m[2]+')','CPU    : '+u[0]+'  '+u[3]+'W TDP','Memory : '+r[2]*1024+' MB '+r[3]+' OK','GPU    : '+gp[0],'Drive  : '+st[0],'Cooler : '+CAT.cool[Bd.cool][0],'','Booting from drive…'];const n=Math.min(L.length,Math.floor((performance.now()-bootStart)/170));for(let i=0;i<n;i++)c.fillText(L[i],40,50+i*22);c.textAlign='center'}else if(scr.mode==='boot'){c.fillStyle='#fff';c.font='bold 30px system-ui';c.fillText('PC STUDIO',320,160);c.fillStyle='#1c3045';c.fillRect(220,195,200,6);c.fillStyle='#43e4ff';c.fillRect(220,195,2*scr.pct,6)}
+ else if(scr.mode==='error'){c.fillStyle='#0a2a6b';c.fillRect(0,0,640,360);c.fillStyle='#fff';c.font='bold 24px monospace';c.fillText(scr.gameErr?'GAME ERROR':'BOOT FAILURE',320,150);c.font='15px monospace';c.fillText(scr.msg,320,190)}
+ else if(scr.mode==='game'){const g=scr.g,e=(performance.now()-g.start)/1000,k=c.createLinearGradient(0,0,640,360);
+  if(e<2.5){k.addColorStop(0,g.pal[2]);k.addColorStop(1,'#000');c.fillStyle=k;c.fillRect(0,0,640,360);c.fillStyle='#fff';c.font='bold 44px system-ui';c.fillText(g.n,320,185);c.font='13px system-ui';c.fillStyle=g.pal[0];c.fillText('Launching…',320,215)}
+  else if(e<7.5){const p=(e-2.5)/5;k.addColorStop(0,'#0b0f18');k.addColorStop(1,g.pal[2]);c.fillStyle=k;c.fillRect(0,0,640,360);c.fillStyle='#fff';c.font='bold 28px system-ui';c.fillText(g.n,320,140);
+   c.strokeStyle=g.pal[0];c.lineWidth=4;c.beginPath();c.arc(320,200,16,e*6,e*6+4.2);c.stroke();c.lineWidth=1;c.fillStyle='#1c2638';c.fillRect(170,260,300,6);c.fillStyle=g.pal[0];c.fillRect(170,260,300*p,6);c.fillStyle='#b5c8df';c.font='12px system-ui';c.fillText('Loading '+Math.floor(p*100)+'%',320,285);c.fillText(['Compiling shaders…','Streaming textures…','Loading world…'][Math.min(2,Math.floor(p*3))],320,305)}
+  else{scene2d(c,g,e);play(c,g)}}
+ else if(scr.mode==='desktop'){const g=c.createLinearGradient(0,0,640,360);g.addColorStop(0,'#0b2d5c');g.addColorStop(.5,'#1b6fb5');g.addColorStop(1,'#6a2fb0');c.fillStyle=g;c.fillRect(0,0,640,360);
+  c.fillStyle='rgba(255,255,255,.12)';c.fillRect(150,50,340,200);c.fillStyle='rgba(8,16,30,.8)';c.fillRect(150,50,340,26);c.fillStyle='#fff';c.font='13px system-ui';c.textAlign='left';c.fillText('PC Studio OS  ·  System ready',160,68);
+  [CAT.cpu[Bd.cpu][0],CAT.gpu[Bd.gpu][0],CAT.ram[Bd.ram][0],CAT.st[Bd.st][0]].forEach((t,i)=>c.fillText(['CPU      ','GPU      ','Memory   ','Storage  '][i]+t,170,110+i*28));c.fillStyle='#cfe8ff';c.fillText('Open the GAMES tab and run a game',170,235);
+  [['Games',30,40],['Files',30,120],['Browser',30,200]].forEach(a=>{c.fillStyle='rgba(255,255,255,.85)';c.fillRect(a[1],a[2],44,44);c.fillStyle='#fff';c.fillText(a[0],a[1],a[2]+60)});
+  c.fillStyle='rgba(6,12,22,.92)';c.fillRect(0,330,640,30);c.fillStyle='#55e5ff';c.fillRect(8,336,18,18);c.fillStyle='#fff';c.textAlign='right';c.fillText(new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}),630,350)}
+ stex.needsUpdate=true}
+(function(){const g=grp('Monitor','27 inch monitor. It shows the boot screen, errors, the desktop and game previews.');
+ rb(g,'Monitor',4.7,2.75,.16,7.2,-1.1,.1,mats.plastic,.1);
+ add(g,'Monitor',new THREE.PlaneGeometry(4.5,2.55),7.2,-1.1,.19,new THREE.MeshBasicMaterial({map:stex,toneMapped:false}),true);
+ bx(g,'Monitor',.3,1.1,.18,7.2,-2.65,-.1,mats.silver);bx(g,'Monitor',2.0,.08,1.1,7.2,-3.0,.1,mats.silver);
+ const[gc,gx]=cv(64,64),gg=gx.createLinearGradient(0,0,64,64);gg.addColorStop(0,'rgba(255,255,255,.16)');gg.addColorStop(.45,'rgba(255,255,255,0)');gg.addColorStop(1,'rgba(255,255,255,.05)');gx.fillStyle=gg;gx.fillRect(0,0,64,64);add(g,'Monitor',new THREE.PlaneGeometry(4.5,2.55),7.2,-1.1,.195,new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(gc),transparent:true,depthWrite:false}),true);
+ const bsm=new THREE.SpriteMaterial({map:gTex,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false,opacity:0}),bsp=new THREE.Sprite(bsm);bsp.position.set(7.2,-1.1,-.4);bsp.scale.set(9,6,1);g.add(bsp);glows.push({sm:bsm,i:5});cyl(g,'Monitor',.03,.02,8.8,-2.43,.19,rgb());
+ const k=grp('Keyboard','Mechanical keyboard for typing and gaming.');
+ bx(k,'Keyboard',3.4,.1,1.2,7.0,-3.0,2.0,mats.matte);add(k,'Keyboard',new THREE.PlaneGeometry(3.2,1.0).rotateX(-Math.PI/2),7.0,-2.952,2.0,rgb(),true);const kc=new THREE.InstancedMesh(new THREE.BoxGeometry(.17,.07,.17),S(0x0d1118,.2,.5),70),dm=new THREE.Object3D();let kn=0;for(let r=0;r<5;r++)for(let i=0;i<14;i++){dm.position.set(5.62+i*.215,-2.93,1.6+r*.21);dm.updateMatrix();kc.setMatrixAt(kn++,dm.matrix)}kc.castShadow=true;kc.userData.part='Keyboard';k.add(kc);
+ const m=grp('Mouse','Gaming mouse with RGB.');rb(m,'Mouse',.45,.7,.14,9.6,-2.98,2.0,mats.plastic,.15).rotation.x=Math.PI/2;
+ add(m,'Mouse',new THREE.BoxGeometry(.4,.02,.05),9.6,-2.9,1.75,rgb(),true)})();
+drawScreen();
+
+// ---------- parts UI ----------
+const names=Object.keys(parts),list=$('parts');
+names.forEach(n=>{const b=document.createElement('button');b.className='part';b.textContent=n;b.dataset.n=n;b.onclick=()=>choose(n);list.appendChild(b)});
+const ok=n=>parts[n].installed;
+function toast(t){const e=$('toast');e.textContent=t;e.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.display='none',3200)}
+function update(){const p=parts[selected];$('pname').textContent=selected+(p.installed?'':' · REMOVED');$('desc').textContent=p.desc;
+ $('remove').disabled=!p.installed||selected==='PC Case';$('install').disabled=p.installed;
+ document.querySelectorAll('.part').forEach(b=>{b.classList.toggle('active',b.dataset.n===selected);b.classList.toggle('off',!parts[b.dataset.n].installed)});
+ if($('games').style.display==='block')renderGames()}
+function viewMonitor(){const c=new THREE.Box3().setFromObject(parts.Monitor.g).getCenter(new THREE.Vector3());view(c.x,c.y-.5,c.z,6,3.6,0,.05)}
+function choose(n){if(!parts[n])return;selected=n;update();if(['Monitor','Keyboard','Mouse'].includes(n)){const c=new THREE.Box3().setFromObject(parts[n].g).getCenter(new THREE.Vector3());view(c.x,c.y,c.z,n==='Monitor'?6:4.5,4,0,.15)}else if(goal.tx>1.5)front()}
+$('remove').onclick=()=>{if(selected==='PC Case')return;parts[selected].installed=false;parts[selected].g.visible=false;if(powered&&selected!=='Monitor')refreshPower();update()};
+$('install').onclick=()=>{parts[selected].installed=true;parts[selected].g.visible=true;if(powered&&scr.mode==='error')refreshPower();update()};
+
+// ---------- camera orbit ----------
+const cam={th:-.38,ph:.1,d:14,tx:0,ty:0,tz:0},goal=Object.assign({},cam);
+function fitD(w,h){const v=36*Math.PI/180,a=stage.clientWidth/stage.clientHeight;return Math.max(7,Math.max((w/2)/(Math.tan(v/2)*a),(h/2)/Math.tan(v/2)))}
+function view(x,y,z,w,h,th,ph){Object.assign(goal,{tx:x,ty:y,tz:z,d:fitD(w,h),th,ph})}
+const front=()=>view(0,-.1,0,6.5,6.9,.45,.1),side=()=>view(0,-.1,0,6.5,6.9,-.75,.14),deskV=()=>view(3.6,-1.3,.5,20,8,0,.14);
+$('front').onclick=front;$('side').onclick=side;$('desk').onclick=deskV;
+$('reset').onclick=()=>{Object.values(parts).forEach(p=>{p.installed=true;p.g.visible=true;p.g.position.copy(p.home)});exploded=false;if(powered)shutdown();$('explode').textContent='EXPLODED VIEW';choose('Motherboard');front()};
+$('explode').onclick=()=>{exploded=!exploded;$('explode').textContent=exploded?'ASSEMBLED VIEW':'EXPLODED VIEW';
+ const off={'CPU':[0,.5,1.4],'CPU Cooler':[0,1.0,2.0],'RAM 1':[.2,.6,1.2],'RAM 2':[.7,.8,1.6],'Graphics Card (GPU)':[0,-.8,2.2],'SSD':[0,.6,1.0],'Hard Drive (HDD)':[-.8,-.7,1.6],'Power Supply (PSU)':[0,-1.0,1.8],'Case Fans':[-1.2,0,1.8],'Rear Exhaust Fan':[1.0,.8,1.6],'Rear I/O Ports':[1.1,.3,1.0],'Power Cables':[.9,0,2.6],'Motherboard':[0,0,-.3]};
+ Object.entries(parts).forEach(([n,p])=>{const v=off[n];p.g.position.copy(p.home);if(exploded&&v)p.g.position.add(new THREE.Vector3(...v))});if(exploded)view(0,-.1,0,9,8.5,-.4,.15);else front()};
+
+// ---------- power ----------
+let bootStart=0,fanV=0,frameN=0;
+function refreshPower(){
+ if(!ok('Power Supply (PSU)')||!ok('Power Cables')||!ok('Motherboard')){shutdown();toast('No power: the PSU, power cables and motherboard are required.');return}
+ let e=null;if(!ok('CPU'))e='No CPU detected';else if(!ok('CPU Cooler'))e='CPU overheating: cooler missing';else if(!ok('RAM 1')&&!ok('RAM 2'))e='No RAM detected';else if(!ok('SSD')&&!ok('Hard Drive (HDD)'))e='No bootable storage drive';if(!e)e=firstErr();
+ $('stopGame').style.display='none';
+ if(e){scr.mode='error';scr.gameErr=false;scr.msg=e;drawScreen();toast(e+(ok('Monitor')?'':' (monitor removed, so no image)'))}
+ else{scr.mode='post';scr.pct=0;bootStart=performance.now();drawScreen();if(!ok('Monitor'))toast('Monitor removed: the PC runs but there is no display.')}}
+function shutdown(){powered=false;scr.mode='off';scr.g=null;$('stopGame').style.display='none';drawScreen();$('power').textContent='⏻ POWER ON';$('power').className='good'}
+$('power').onclick=()=>{if(powered){shutdown();return}
+ if(!ok('Power Supply (PSU)')||!ok('Power Cables')||!ok('Motherboard')){toast('No power: the PSU, power cables and motherboard are required.');return}
+ powered=true;$('power').textContent='POWER OFF';$('power').className='danger';refreshPower()};
+
+// ---------- RGB controls ----------
+const rg={on:true,mode:'rainbow',color:'#18bfff',speed:1,bright:1.6},tmp=new THREE.Color();
+function rgbCol(i,t,out){if(rg.mode==='rainbow')out.setHSL((t*.12*rg.speed+i*.06)%1,1,.5);else{out.set(rg.color);if(rg.mode==='breath')out.multiplyScalar(.3+.7*(.5+.5*Math.sin(t*2.2*rg.speed)))}}
+$('rgbOn').onchange=e=>rg.on=e.target.value==='1';$('rgbMode').onchange=e=>rg.mode=e.target.value;
+$('rgbColor').oninput=e=>{rg.color=e.target.value;if(rg.mode==='rainbow'){rg.mode='static';$('rgbMode').value='static'}};
+$('rgbSpeed').oninput=e=>rg.speed=+e.target.value;$('rgbBright').oninput=e=>rg.bright=+e.target.value;
+['#ff2d55','#ff9f0a','#ffe100','#30d158','#18bfff','#7a5cff','#ff5cf0','#ffffff'].forEach(c=>{const b=document.createElement('button');b.className='sw';b.style.background=c;b.onclick=()=>{rg.color=c;rg.mode='static';rg.on=true;$('rgbMode').value='static';$('rgbOn').value='1';$('rgbColor').value=c;if(!powered)toast('Power on the PC to see the lights.')};$('swatches').appendChild(b)});
+
+const CAT={case:[['Mid Tower ATX · Black glass',90,1,'#1a2230',.1,'glass','ATX,mATX,ITX',330],['Mid Tower ATX · White glass',110,1,'#cfd6de',.1,'glass','ATX,mATX,ITX',330],['Airflow Mesh Tower',80,1,'#1a2230',0,'mesh','ATX,mATX,ITX',340],['Full Tower E-ATX',220,1.18,'#2a2f3a',.1,'glass','ATX,mATX,ITX',420],['Compact Micro-ATX',70,.85,'#4a1a26',.1,'glass','mATX,ITX',300],['Mini-ITX Cube',130,.7,'#9aa6b2',.1,'glass','ITX',280],['Open-Frame Bench',160,1,'#6d7c8c',0,'open','ATX,mATX,ITX',400],['Smoked Glass Tower',120,1,'#101418',.5,'glass','ATX,mATX,ITX',350],['Wood and Glass Premium',250,1,'wood',.1,'glass','ATX,mATX,ITX',360],['Retro Beige Tower',60,1,'#cdbf9b',0,'mesh','ATX,mATX',310],['Hyper Showcase Tower · dual glass + RGB rails',420,1.1,'#15181f',.1,'glass','ATX,mATX,ITX',420,'hyper']],
+cpu:[['Pulse Q4 (4-core)',99,1,65,'S-A'],['Pulse Q4 Plus (4-core)',110,1,58,'S-B'],['Pulse H6 (6-core)',130,2,65,'S-A'],['Pulse H6 Plus (6-core)',150,2,65,'S-B'],['Pulse H6 Max (6-core)',210,2,65,'S-C'],['Pulse X16 (16-core)',380,3,125,'S-B'],['Pulse X8 Cache (8-core)',400,3,120,'S-C'],['Pulse Z24 (24-core)',560,4,253,'S-B'],['Pulse Z16 (16-core)',550,4,170,'S-C']],
+mb:[['Board A5 ATX',110,'S-A','ATX'],['Board A2 Micro-ATX',70,'S-A','mATX'],['Board B6 ATX',140,'S-B','ATX'],['Board B1 Micro-ATX',90,'S-B','mATX'],['Board C6 ATX',180,'S-C','ATX'],['Board C6 Mini-ITX',200,'S-C','ITX'],['Board B7 ATX',260,'S-B','ATX'],['Board B7 Mini-ITX',230,'S-B','ITX']],
+gpu:[['Integrated graphics',0,0,0,0],['Photon L1 2GB',90,1,30,150],['Photon M2 4GB',140,2,75,200],['Photon M3 12GB',280,3,170,242],['Photon M3 Plus 12GB',320,3,230,267],['Photon H4 12GB',550,4,200,242],['Photon H4 Ultra 16GB',800,4,285,305],['Photon H5 16GB',1000,5,320,310],['Photon H5 Extreme 24GB',1600,5,450,336]],
+ram:[['8GB DDR4',25,8,'DDR4',1],['16GB DDR4 (2x8)',45,16,'DDR4',2],['16GB DDR5',70,16,'DDR5',2],['32GB DDR5',110,32,'DDR5',2],['64GB DDR5',210,64,'DDR5',2]],
+st:[['1TB HDD',45,0],['500GB SATA SSD',40,1],['1TB NVMe SSD',70,2],['2TB NVMe Gen4 SSD',140,2]],
+psu:[['450W',40,450],['550W Bronze',55,550],['650W Bronze',70,650],['750W Gold',95,750],['850W Gold',120,850],['1000W Platinum',190,1000],['1200W Platinum',250,1200]],
+cool:[['Stock cooler',0],['Air tower cooler',35],['Dual-tower air cooler',90],['240mm liquid AIO',100],['360mm liquid AIO',150]],
+mon:[['24-inch 1080p 60Hz',100,24,0],['24-inch 1080p 144Hz',140,24,0],['27-inch 1440p 165Hz',260,27,1],['32-inch 4K 144Hz',600,32,2],['34-inch ultrawide 1440p',450,34,1]]};
+const LAB={case:'Case',cpu:'Processor',mb:'Motherboard',gpu:'Graphics card',ram:'Memory',st:'Storage',psu:'Power supply',cool:'CPU cooler',mon:'Monitor'};
+let Bd={case:10,cpu:2,mb:0,gpu:2,ram:1,st:2,psu:2,cool:1,mon:1};
+const PRE={Budget:{case:4,cpu:0,mb:1,gpu:1,ram:0,st:1,psu:0,cool:0,mon:0},Mid:{case:10,cpu:2,mb:0,gpu:2,ram:1,st:2,psu:2,cool:1,mon:1},High:{case:10,cpu:5,mb:6,gpu:5,ram:3,st:3,psu:4,cool:3,mon:2},Ultra:{case:3,cpu:8,mb:4,gpu:8,ram:4,st:3,psu:6,cool:4,mon:3}};
+let bodyCol=null,bodyMode=1,flat=false;const caseG=parts['PC Case'].g,glassM=caseG.children.find(o=>o.material===mats.glass);
+const sideP=new THREE.Mesh(new THREE.BoxGeometry(4.1,5.5,.04),new THREE.MeshStandardMaterial({map:meshTex(),metalness:.6,roughness:.5,transparent:true,opacity:.55,depthWrite:false}));sideP.position.z=1.36;caseG.add(sideP);
+const fmP=caseG.children.find(o=>o.geometry&&o.geometry.type==='PlaneGeometry'&&o.geometry.parameters.width===2.4)||{visible:true},hyper=[];
+(function(){const A=(geo,x,y,z,m)=>{const o=add(caseG,'PC Case',geo,x,y,z,m,true);o.visible=false;hyper.push(o);return o};for(const x of[-2.16,2.16])A(new THREE.CylinderGeometry(.06,.06,5.7,16),x,0,1.4,mats.silver);for(const y of[2.82,-2.82])A(new THREE.CylinderGeometry(.045,.045,4.3,12).rotateZ(Math.PI/2),0,y,1.46,rgb());for(const x of[-1.95,1.95])A(new THREE.CylinderGeometry(.03,.03,5.3,12),x,0,1.33,rgb());A(new THREE.BoxGeometry(2.6,.03,.03),.55,-1.8,.04,rgb());const fg=A(new THREE.BoxGeometry(.03,5.4,2.5),-2.17,0,0,mats.glass);delete fg.userData.part;for(const y of[-1.4,0,1.4])A(new THREE.BoxGeometry(.04,.05,2.3),-2.2,y,0,mats.silver)})();
+function setInst(n,v){parts[n].installed=v;parts[n].g.visible=v}
+function checks(){const c=CAT.case[Bd.case],u=CAT.cpu[Bd.cpu],m=CAT.mb[Bd.mb],g=CAT.gpu[Bd.gpu],r=CAT.ram[Bd.ram],p=CAT.psu[Bd.psu],out=[];if(u[4]!==m[2])out.push(['e','CPU socket '+u[4]+' does not fit the '+m[2]+' motherboard']);if(!c[6].split(',').includes(m[3]))out.push(['e','This case cannot hold a '+m[3]+' motherboard']);if(g[4]>c[7])out.push(['e','GPU is '+g[4]+' mm long but the case fits only '+c[7]+' mm']);const need=u[3]+g[3]+100;if(p[2]<need)out.push(['e','PSU overload: needs about '+need+' W, has '+p[2]+' W']);else if(p[2]<need*1.25)out.push(['w','PSU headroom is small (needs about '+need+' W)']);if(m[2]==='S-C'&&r[3]==='DDR4')out.push(['e','S-C boards need DDR5 memory']);if(m[2]==='S-A'&&r[3]==='DDR5')out.push(['e','S-A boards need DDR4 memory']);if(u[3]>=120&&Bd.cool<2)out.push(['w','This CPU runs hot: use a liquid or dual-tower cooler']);return out}
+function firstErr(){const x=checks().find(a=>a[0]==='e');return x?x[1]:null}
+function sumRender(){const t=Object.keys(CAT).reduce((a,k)=>a+CAT[k][Bd[k]][1],0),w=CAT.cpu[Bd.cpu][3]+CAT.gpu[Bd.gpu][3]+100,ch=checks();$('bsum').innerHTML='<div class="metrics"><div class="metric">Total <b>$'+t+'</b></div><div class="metric">Est. load <b>'+w+' W</b></div></div>'+(ch.length?ch.map(a=>'<div class="note" style="color:'+(a[0]==='e'?'#ff8b9b':'#ffd36d')+'">'+(a[0]==='e'?'✕ ':'! ')+a[1]+'</div>').join(''):'<div class="note" style="color:#4ce0a0">✓ All parts are compatible</div>')}
+function applyBuild(){const c=CAT.case[Bd.case],s=c[2];pc.scale.setScalar(s);applyPos();setBody(bodyCol);glassM.visible=c[5]==='glass';sideP.visible=c[5]==='mesh';const hy=c[8]==='hyper';hyper.forEach(o=>{o.visible=hy});fmP.visible=!hy;mats.glass.opacity=c[4]||.1;parts['PC Case'].desc=c[0]+'. Takes '+c[6].replace(/,/g,', ')+' boards and GPUs up to '+c[7]+' mm.';setInst('RAM 2',CAT.ram[Bd.ram][4]===2);const hdd=CAT.st[Bd.st][2]===0;setInst('SSD',!hdd);setInst('Hard Drive (HDD)',hdd);setInst('Graphics Card (GPU)',Bd.gpu>0);const ms=Math.max(.9,Math.min(1.2,CAT.mon[Bd.mon][2]/27)),mg=parts.Monitor.g;mg.scale.setScalar(ms);mg.position.set(7.2*(1-ms),-3.05*(1-ms),0);parts.Monitor.home.copy(mg.position);sumRender();if(powered)refreshPower();update();if(!exploded&&goal.tx<1.5)front()}
+function renderBuilder(){$('builder').innerHTML='<div class="toolbar">'+Object.keys(PRE).map(n=>'<button data-pre=\''+n+'\'>'+n+' build</button>').join('')+'</div><div class="specgrid">'+Object.keys(CAT).map(k=>'<div class="spec"'+(k==='case'?' style="grid-column:1/3"':'')+'><label>'+LAB[k]+'</label><select data-c=\''+k+'\'>'+CAT[k].map((it,i)=>'<option value=\''+i+'\''+(Bd[k]===i?' selected':'')+'>'+it[0]+' · $'+it[1]+'</option>').join('')+'</select></div>').join('')+'</div><div id="bsum"></div><div class="note">Choose any case, board, CPU, GPU, memory, storage, PSU, cooler and monitor. The 3D PC, the power-on check and the game ratings follow your choices. Prices are rough examples.</div>'}
+$('builder').onchange=e=>{const k=e.target.dataset.c;if(k){Bd[k]=+e.target.value;if(k==='case')bodyCol=null;applyBuild()}};
+$('builder').onclick=e=>{const b=e.target.closest('[data-pre]');if(b){Bd=Object.assign({},PRE[b.dataset.pre]);bodyCol=null;renderBuilder();applyBuild()}};
+renderBuilder();applyBuild();
+// ---------- tabs / specs / games ----------
+const TABS=['build','rgbp','specs','games'];
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===t));TABS.forEach(id=>$(id).style.display=id===t.dataset.tab?'block':'none');if(t.dataset.tab==='games'||t.dataset.tab==='specs')renderGames()});
+['cpuSpec','gpuSpec','ramSpec','storageSpec'].forEach(id=>$(id).onchange=renderGames);
+function perf(){const s={cpu:CAT.cpu[Bd.cpu][2],gpu:CAT.gpu[Bd.gpu][2],ram:CAT.ram[Bd.ram][2],st:CAT.st[Bd.st][2]},sticks=(ok('RAM 1')?1:0)+(ok('RAM 2')?1:0),kit=CAT.ram[Bd.ram][4];
+ const e={cpu:ok('CPU')?s.cpu:0,gpu:ok('Graphics Card (GPU)')?s.gpu:0,ram:s.ram*sticks/kit,st:ok('SSD')?Math.max(s.st,1):ok('Hard Drive (HDD)')?0:-1};
+ const dead=e.cpu===0||sticks===0||e.st<0||!ok('Motherboard')||!ok('Power Supply (PSU)')||!ok('CPU Cooler'),score=e.gpu*2+e.cpu+(e.ram>=16?1:0),tier=score<3?0:score<6?1:score<9?2:score<12?3:4;
+ return{e,dead,tier,pen:e.ram<8?2:e.ram<16?1:0}}
+function fpsFor(g){const p=perf();if(p.dead)return 0;const v=p.tier-p.pen-Math.max(0,CAT.mon[Bd.mon][3]-Math.floor(p.e.gpu/2));return Math.min(360,Math.max(12,Math.round(40*Math.pow(1.6,v-g[2]))))}
+function statusOf(need){const p=perf();if(p.dead)return'Not recommended';const v=p.tier-p.pen-Math.max(0,CAT.mon[Bd.mon][3]-Math.floor(p.e.gpu/2));return v>=need+1?'Good fit':v>=need?'May run':'Not recommended'}
+function renderGames(){const p=perf(),s=p.e,labels=['Not recommended','Low settings','Low–Medium','Medium–High','High–Ultra'];
+ $('metrics').innerHTML=p.dead?'<div class="metric">PC cannot boot: a required part is removed</div>':`<div class="metric">CPU tier <b>${s.cpu}/4</b></div><div class="metric">GPU tier <b>${s.gpu}/5</b></div><div class="metric">RAM <b>${s.ram} GB</b></div><div class="metric">Storage <b>${s.st===0?'HDD':'SSD'}</b></div><div class="metric">Overall <b>${labels[p.tier]}</b></div>`;
+ $('gameList').innerHTML=GAMES.map(g=>{const st=statusOf(g[2]),cl=st==='Good fit'?'':st==='May run'?'mid':'low';
+  return`<div class="game"><div><strong>${g[0]}</strong><small>${g[1]}${s.st===0&&!p.dead?' · slow loading on HDD':''}</small></div><div><div class="rating ${cl}">${st}${st==='Not recommended'?'':' · ~'+fpsFor(g)+' FPS'}</div><button class="primary" data-run="${g[0]}">RUN</button></div></div>`}).join('')}
+const norm=s=>s.toLowerCase().replace(/[^a-z0-9]/g,'');
+function findGame(q){q=norm(q.replace(/\b(run|play|start|launch|open)\b/gi,''));if(!q)return null;return GAMES.find(g=>g[5].some(a=>q===a||(q.length>2&&q.includes(a))))||GAMES.find(g=>q.length>2&&norm(g[0]).includes(q))}
+function runGame(g){if(!ADS.interstitial||!powered||!ok('Monitor')||scr.mode==='boot'||scr.mode==='post'||(scr.mode==='error'&&!scr.gameErr)||statusOf(g[2])==='Not recommended'){runGame0(g);return}showAd(()=>runGame0(g))}
+function runGame0(g){
+ if(!powered){toast('Power on the PC first, then run the game.');return}
+ if(!ok('Monitor')){toast('Monitor removed: nothing to show the game on.');return}
+ if(scr.mode==='boot'||scr.mode==='post'){toast('Wait for the PC to finish booting.');return}
+ if(scr.mode==='error'&&!scr.gameErr){toast('Fix the boot error first.');return}
+ const st=statusOf(g[2]);viewMonitor();
+ if(st==='Not recommended'){scr.mode='error';scr.gameErr=true;scr.msg=g[0]+' cannot run: hardware too weak';drawScreen();toast(g[0]+' needs a stronger PC. Upgrade the parts in PC SPECS.');
+  setTimeout(()=>{if(powered&&scr.mode==='error'&&scr.gameErr){scr.mode='desktop';drawScreen()}},3500);return}
+ scr.mode='game';scr.gameErr=false;scr.g={n:g[0],type:g[3],pal:g[4],start:performance.now(),fps:fpsFor(g),slow:fpsFor(g)<50,play:true,last:0,st:{t:0,x:320,y:g[3]==='sky'?130:0,vy:0,tg:[],nx:1,score:0,hp:3,hurt:0,over:0,mx:320,my:180,fl:0}};$('stopGame').style.display='block';logPlay(g[0])}
+function stopGame(){if(scr.mode==='game'){scr.mode='desktop';scr.g=null}$('stopGame').style.display='none';drawScreen()}
+$('stopGame').onclick=stopGame;
+$('gameList').onclick=e=>{const b=e.target.closest('[data-run]');if(b)runGame(GAMES.find(g=>g[0]===b.dataset.run))};
+function cmdGo(){const g=findGame($('cmd').value);if(g)runGame(g);else toast('Game not found. Try “City Heist run”, “Block Builder run” or “Tactical Strike run”.')}
+$('cmdRun').onclick=cmdGo;$('cmd').onkeydown=e=>{if(e.key==='Enter')cmdGo()};
+
+// ---------- interaction ----------
+const el=renderer.domElement,ptrs=new Map(),ray=new THREE.Raycaster(),mv=new THREE.Vector2();let down=null,pinch=0;
+el.addEventListener('pointerdown',e=>{el.setPointerCapture(e.pointerId);ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});down={x:e.clientX,y:e.clientY,t:performance.now()};if(ptrs.size===2){const a=[...ptrs.values()];pinch=Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y)}});
+el.addEventListener('pointermove',e=>{const p=ptrs.get(e.pointerId);if(!p)return;const dx=e.clientX-p.x,dy=e.clientY-p.y;p.x=e.clientX;p.y=e.clientY;
+ if(ptrs.size===1){goal.th-=dx*.006;goal.ph=Math.max(-.2,Math.min(1.2,goal.ph+dy*.005))}
+ else if(ptrs.size===2){const a=[...ptrs.values()],d=Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y);if(pinch)goal.d=Math.max(4,Math.min(45,goal.d*pinch/d));pinch=d}});
+function isVis(o){while(o){if(!o.visible)return false;o=o.parent}return true}
+el.addEventListener('pointerup',e=>{ptrs.delete(e.pointerId);pinch=0;
+ if(down&&ptrs.size===0&&Math.hypot(e.clientX-down.x,e.clientY-down.y)<6&&performance.now()-down.t<350){
+  const r=el.getBoundingClientRect();mv.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);ray.setFromCamera(mv,camera);
+  const hit=ray.intersectObjects(root.children,true).find(h=>h.object.userData.part&&isVis(h.object));if(hit)choose(hit.object.userData.part)}
+ down=null});
+el.addEventListener('pointercancel',e=>ptrs.delete(e.pointerId));
+el.addEventListener('wheel',e=>{e.preventDefault();goal.d=Math.max(4,Math.min(45,goal.d*(1+e.deltaY*.001)))},{passive:false});
+function resize(){const w=stage.clientWidth,h=stage.clientHeight;renderer.setSize(w,h);camera.aspect=w/h;camera.updateProjectionMatrix()}
+addEventListener('resize',()=>{resize();if(goal.tx<1.5&&!exploded)front()});
+resize();(stage.clientWidth/stage.clientHeight<.9?front:deskV)();Object.assign(cam,goal);selected='Motherboard';update();
+
+let ctlOn=false;
+document.querySelectorAll('[data-k]').forEach(b=>{const k=b.dataset.k;b.addEventListener('pointerdown',e=>{e.preventDefault();inp[k]=1});['pointerup','pointerleave','pointercancel'].forEach(v=>b.addEventListener(v,()=>{if(k!=='fire')inp[k]=0}))});
+const mp=$('mpad');let mlast=null;
+mp.addEventListener('pointerdown',e=>{mp.setPointerCapture(e.pointerId);mlast={x:e.clientX,y:e.clientY};inp.fire=1});
+mp.addEventListener('pointermove',e=>{if(!mlast)return;inp.dx+=(e.clientX-mlast.x)*1.8;inp.dy+=(e.clientY-mlast.y)*1.8;mlast={x:e.clientX,y:e.clientY}});
+['pointerup','pointercancel'].forEach(v=>mp.addEventListener(v,()=>{mlast=null}));
+const KM={a:'l',arrowleft:'l',d:'r',arrowright:'r',w:'u',arrowup:'u',s:'d',arrowdown:'d',' ':'jump',f:'fire',enter:'fire'};
+addEventListener('keydown',e=>{if(scr.mode!=='game'||e.target.tagName==='INPUT')return;const k=KM[e.key.toLowerCase()];if(k){e.preventDefault();inp[k]=1}});
+addEventListener('keyup',e=>{const k=KM[e.key.toLowerCase()];if(k&&k!=='fire')inp[k]=0});
+let avgMs=16,prc=Math.min(devicePixelRatio,2),prT=0,fAcc=0,fN=0,spin=false;const fe=document.createElement('div');fe.className='overlay';fe.style.cssText='left:9px;top:46px';fe.textContent='FPS';stage.appendChild(fe);
+function adapt(dt){avgMs+=(dt*1000-avgMs)*.05;prT+=dt;if(prT>2){prT=0;let n=prc;if(avgMs>26&&prc>.75)n=prc-.25;else if(avgMs<14&&prc<Math.min(devicePixelRatio,2))n=prc+.25;if(n!==prc){prc=n;renderer.setPixelRatio(prc);resize()}}}
+function fpsMeter(dt){fAcc+=dt;fN++;if(fAcc>.5){fe.textContent=Math.round(fN/fAcc)+' FPS · '+prc.toFixed(2)+'x';fAcc=0;fN=0}}
+$('spin').onclick=()=>{spin=!spin;$('spin').className=spin?'primary':''};
+const bodyHex=['#15181f','#f2f4f7','#aab4c0','#c0152f','#1565c0','#ff4fa3','#6a3de8','#1f8a4c'],bodyLight=new THREE.PointLight(0x19cfff,0,9);bodyLight.position.set(0,-2.6,1.6);scene.add(bodyLight);
+function lum(h){const c=new THREE.Color(h);return .2126*c.r+.7152*c.g+.0722*c.b}
+function setBody(h){bodyCol=h;const base=h||CAT.case[Bd.case][3],light=base!=='wood'&&lum(base)>.45;mats.case.map=base==='wood'?woodTex():brushTex(base);mats.case.metalness=light?.35:.85;mats.case.roughness=light?.5:.36;mats.case.needsUpdate=true;mats.edge.color.set(base==='wood'?'#4a5d73':base).offsetHSL(0,0,.06)}
+function applyPos(){const s=pc.scale.x;pc.rotation.set(0,.45,flat?-Math.PI/2:0);pc.position.y=flat?-3.05+2.16*s:-3.05*(1-s)}
+function bodyUpdate(lit,t){const on=lit&&bodyMode>0;rgbCol(2,t,tmp);if(on){mats.edge.emissive.copy(tmp);mats.edge.emissiveIntensity=bodyMode===2?1.2:2.2;mats.case.emissive.copy(tmp);mats.case.emissiveIntensity=bodyMode===2?.35:0;bodyLight.color.copy(tmp);bodyLight.intensity=bodyMode===2?9:4}else{mats.edge.emissive.setHex(0);mats.case.emissive.setHex(0);bodyLight.intensity=0}}
+bodyHex.forEach(c=>{const b=document.createElement('button');b.className='sw';b.style.background=c;b.onclick=()=>{setBody(c);$('bodyCol').value=c};$('bodySw').appendChild(b)});
+$('bodyCol').oninput=e=>setBody(e.target.value);$('bodyRgb').onchange=e=>{bodyMode=+e.target.value};$('pcPos').onchange=e=>{flat=e.target.value==='flat';applyPos();if(!exploded)front()};
+function cable(a){const m=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(a.map(p=>new THREE.Vector3(...p))),40,.025,6),mats.matte);m.castShadow=true;scene.add(m)}
+cable([[7,-2.97,1.4],[7.4,-3.02,.9],[7.3,-3.0,.3],[7.2,-2.95,-.1]]);cable([[9.6,-2.97,1.65],[9.3,-3.02,1.2],[8.2,-3.02,.4],[7.5,-2.95,-.1]]);cable([[7.2,-2.95,-.4],[8.6,-3.02,-1.8],[9.5,-3.0,-3.9],[9.5,-5.2,-4.1]]);
+let ultra=true;const maxPr=Math.min(devicePixelRatio,2),TRACK_URL='';$('gq').onchange=e=>{ultra=e.target.value==='1'};
+function logPlay(n){try{const a=JSON.parse(localStorage.getItem('pcs_plays')||'[]');a.push({t:Date.now(),g:n});localStorage.setItem('pcs_plays',JSON.stringify(a.slice(-5000)));if(TRACK_URL&&navigator.sendBeacon)navigator.sendBeacon(TRACK_URL,JSON.stringify({t:Date.now(),g:n}))}catch(e){}}
+const ADS={client:'',slot:'',interstitial:true};
+function logAd(k,x){try{const a=JSON.parse(localStorage.getItem('pcs_ads')||'[]');a.push(Object.assign({t:Date.now(),k:k},x||{}));localStorage.setItem('pcs_ads',JSON.stringify(a.slice(-8000)))}catch(e){}}
+function mountAd(el,ph){if(ADS.client){el.innerHTML='<ins class="adsbygoogle" style="display:block;width:100%;height:100%" data-ad-client="'+ADS.client+'" data-ad-slot="'+ADS.slot+'"></ins>';try{(window.adsbygoogle=window.adsbygoogle||[]).push({})}catch(e){}}else el.innerHTML=ph}
+if(ADS.client){const as=document.createElement('script');as.async=true;as.crossOrigin='anonymous';as.src='https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client='+ADS.client;document.head.appendChild(as)}
+mountAd($('adBar'),'<span>Ad space · your banner ad shows here</span>');logAd('banner');setInterval(()=>logAd('banner'),60000);resize();
+let adBusy=false;
+function showAd(cb){if(adBusy)return;adBusy=true;const o=$('adOv');o.style.display='flex';let n=5;const sk=$('adSkip'),tx=$('adCount');mountAd(o.querySelector('.adCard'),'YOUR AD HERE');sk.disabled=true;tx.textContent='Ad ends in 5s';
+ const fin=skipped=>{clearInterval(iv);o.style.display='none';adBusy=false;logAd('video',{skip:!!skipped});cb()};
+ const iv=setInterval(()=>{n--;tx.textContent='Ad ends in '+n+'s';if(n<=2)sk.disabled=false;if(n<=0)fin(false)},1000);sk.onclick=()=>fin(true)}
+// ---------- loop ----------
+const clock=new THREE.Clock();
+function loop(){requestAnimationFrame(loop);const dt=Math.min(clock.getDelta(),.05),t=clock.elapsedTime,gaming=scr.mode==='game';frameN++;if(gaming!==ctlOn){ctlOn=gaming;$('ctl').style.display=gaming?'flex':'none'}if(frameN%6===0)renderer.shadowMap.needsUpdate=true;if(gaming&&ultra){if(prc<maxPr){prc=maxPr;renderer.setPixelRatio(prc);resize()}}else adapt(dt);fpsMeter(dt);if(spin&&!ptrs.size&&!gaming)goal.th+=dt*.35;
+ for(const k of['th','ph','d','tx','ty','tz'])cam[k]+=(goal[k]-cam[k])*.12;
+ camera.position.set(cam.tx+cam.d*Math.sin(cam.th)*Math.cos(cam.ph),cam.ty+cam.d*Math.sin(cam.ph),cam.tz+cam.d*Math.cos(cam.th)*Math.cos(cam.ph));camera.lookAt(cam.tx,cam.ty,cam.tz);
+ fanV+=((powered?(gaming?26:16):0)-fanV)*.05;spinners.forEach(s=>s.rotation.z-=fanV*dt);
+ const lit=powered&&rg.on;
+ rgbMats.forEach((m,i)=>{if(lit){rgbCol(i,t,tmp);m.emissive.copy(tmp);m.emissiveIntensity=rg.bright;m.color.copy(tmp).multiplyScalar(.25)}else{m.emissive.setHex(0);m.color.setHex(0x151b26)}});
+ bodyUpdate(lit,t);glows.forEach(o=>{if(lit){rgbCol(o.i,t,tmp);o.sm.color.copy(tmp)}o.sm.opacity+=((lit?Math.min(.7,.35*rg.bright):0)-o.sm.opacity)*.1});
+ rgbCol(0,t,tmp);glow.color.copy(tmp);glow.intensity+=((lit?7*rg.bright:0)-glow.intensity)*.08;
+ monLight.intensity+=((powered&&scr.mode!=='off'&&ok('Monitor')?5:0)-monLight.intensity)*.08;
+ if(powered&&scr.mode==='post'){drawScreen();if(performance.now()-bootStart>1700){scr.mode='boot';bootStart=performance.now()}}else if(powered&&scr.mode==='boot'){scr.pct=Math.min(100,(performance.now()-bootStart)/28);if(scr.pct>=100)scr.mode='desktop';drawScreen()}
+ else if(gaming&&(ultra||!scr.g.slow||frameN%2===0))drawScreen();
+ renderer.render(scene,camera)}
+$('loading').style.display='none';loop();
+})();
+</script>
+</body>
+</html>
